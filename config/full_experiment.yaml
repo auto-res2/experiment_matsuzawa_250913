@@ -1,0 +1,13 @@
+experiments:
+  run_experiment_1: true
+  run_experiment_2: true
+  run_experiment_3: true
+
+forecoast:
+  num_classes: 100
+  num_tasks: 25
+  epochs_per_task: 10
+  batch_size: 32
+  learning_rate: 0.0002
+  weight_decay: 0.0001
+  replay_buffer_size: 5000
