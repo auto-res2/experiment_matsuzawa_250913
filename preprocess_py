@@ -5,11 +5,11 @@ import json
 from pathlib import Path
 from typing import List
 
-import networkx as nx
-import numpy as np
+import networkx as nx  # noqa: F401  – used for synthetic graphs in extended experiments
+import numpy as np  # noqa: F401
 import torch
 from torch_geometric.data import Data, InMemoryDataset
-from torch_geometric.utils import from_networkx, to_undirected
+from torch_geometric.utils import from_networkx, to_undirected  # noqa: F401
 from torch_geometric.datasets import Planetoid
 from ogb.nodeproppred import NodePropPredDataset
 
@@ -23,7 +23,9 @@ __all__ = ["load_dataset", "prepare_temporal_data"]
 def _split_masks(n: int, train: float = 0.6, val: float = 0.2):
     idx = torch.randperm(n)
     tr, va = int(train * n), int(val * n)
-    m_tr, m_va, m_te = torch.zeros(n, dtype=torch.bool), torch.zeros(n, dtype=torch.bool), torch.zeros(n, dtype=torch.bool)
+    m_tr = torch.zeros(n, dtype=torch.bool)
+    m_va = torch.zeros(n, dtype=torch.bool)
+    m_te = torch.zeros(n, dtype=torch.bool)
     m_tr[idx[:tr]] = True
     m_va[idx[tr : tr + va]] = True
     m_te[idx[tr + va :]] = True
@@ -31,10 +33,13 @@ def _split_masks(n: int, train: float = 0.6, val: float = 0.2):
 
 
 def _add_edge_curvature(edge_index: torch.Tensor) -> torch.Tensor:
-    deg = torch.bincount(edge_index[0])
+    """Very rough discrete-Ricci approximation used for the smoke test."""
+
+    num_nodes = int(edge_index.max()) + 1
+    deg = torch.bincount(edge_index[0], minlength=num_nodes).float()
     curv = 1.0 - (deg[edge_index[0]] + deg[edge_index[1]]) / 20.0
     curv = torch.clamp(curv, -1.0, 1.0)
-    return curv.float()
+    return curv
 
 
 # ------------------------------------------------------------------
@@ -74,11 +79,9 @@ def _load_ogbn_arxiv(root: Path):
     )
     split = ds.get_idx_split()
     n = data.x.size(0)
-    data.train_mask, data.val_mask, data.test_mask = (
-        torch.zeros(n, dtype=torch.bool),
-        torch.zeros(n, dtype=torch.bool),
-        torch.zeros(n, dtype=torch.bool),
-    )
+    data.train_mask = torch.zeros(n, dtype=torch.bool)
+    data.val_mask = torch.zeros(n, dtype=torch.bool)
+    data.test_mask = torch.zeros(n, dtype=torch.bool)
     data.train_mask[split["train"]] = True
     data.val_mask[split["valid"]] = True
     data.test_mask[split["test"]] = True
@@ -97,7 +100,9 @@ def load_dataset(name: str, root: str = "./data"):
     raise ValueError(f"unknown dataset {name}")
 
 
-# Temporal helper­ – for smoke test we just replicate static graph
+# ------------------------------------------------------------------
+# Temporal helper – for smoke test we just replicate a static graph
+# ------------------------------------------------------------------
 
 def prepare_temporal_data(name: str, root: str = "./data", snapshots: int = 6) -> List[Data]:
     base = load_dataset(name, root)

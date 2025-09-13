@@ -16,7 +16,7 @@ dependencies = [
     "pyyaml>=6.0",
     "tqdm>=4.65.0",
     "wandb>=0.15.0",
-    "scipy>=1.10.0",
+    "scipy>=1.10.0"
 ]
 
 [build-system]

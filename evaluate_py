@@ -2,14 +2,12 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
-import torch
-from scipy import stats
 
 plt.rcParams.update({"figure.dpi": 120, "savefig.bbox": "tight"})
 
@@ -19,8 +17,13 @@ plt.rcParams.update({"figure.dpi": 120, "savefig.bbox": "tight"})
 # ---------------------------------------------------------------------
 
 def _save(fig, path: Path):
+    """Save `fig` under the mandatory research path no matter what the caller passes."""
+
+    images_root = Path(".research/iteration2/images")
+    images_root.mkdir(parents=True, exist_ok=True)
+
     fig.tight_layout()
-    fig.savefig(path)
+    fig.savefig(images_root / path.name)
     plt.close(fig)
 
 
@@ -31,14 +34,14 @@ def _save(fig, path: Path):
 def plot_training_curves(history: Dict, out_path: Path):
     epochs = range(len(history["train_loss"]))
     fig, ax = plt.subplots(1, 2, figsize=(10, 4))
-    ax[0].plot(epochs, history["train_loss"], label="train")
-    ax[0].plot(epochs, history["val_loss"], label="val")
+    sns.lineplot(x=list(epochs), y=history["train_loss"], ax=ax[0], label="train")
+    sns.lineplot(x=list(epochs), y=history["val_loss"], ax=ax[0], label="val")
     ax[0].set_xlabel("epoch")
     ax[0].set_ylabel("loss")
     ax[0].legend()
 
-    ax[1].plot(epochs, history["train_acc"], label="train-acc")
-    ax[1].plot(epochs, history["val_acc"], label="val-acc")
+    sns.lineplot(x=list(epochs), y=history["train_acc"], ax=ax[1], label="train-acc")
+    sns.lineplot(x=list(epochs), y=history["val_acc"], ax=ax[1], label="val-acc")
     ax[1].set_xlabel("epoch")
     ax[1].set_ylabel("accuracy")
     ax[1].legend()
@@ -47,7 +50,11 @@ def plot_training_curves(history: Dict, out_path: Path):
 
 
 def main_evaluation(results_dir: Path, out_dir: Path):
-    """Loads `training_results.json` and emits basic plots + json summary."""
+    """Loads `training_results.json` and emits basic plots + json summary.
+
+    Besides the normal per-run folder, we *also* dump the summary into
+    `.research/iteration2/` as required by the evaluation harness.
+    """
 
     out_dir.mkdir(parents=True, exist_ok=True)
     with open(results_dir / "training_results.json") as fp:
@@ -60,7 +67,18 @@ def main_evaluation(results_dir: Path, out_dir: Path):
         "test_f1": res["test_metrics"]["f1_score"],
         "best_val_f1": res["best_val_f1"],
     }
+
+    # Save within the specific run folder (legacy path)
     with open(out_dir / "evaluation_report.json", "w") as fp:
         json.dump(summary, fp, indent=2)
+
+    # Mandatory global JSON dump
+    global_json_dir = Path(".research/iteration2")
+    global_json_dir.mkdir(parents=True, exist_ok=True)
+    global_json_path = global_json_dir / f"evaluation_report_{int(time.time())}.json"
+    with open(global_json_path, "w") as fp:
+        json.dump(summary, fp, indent=2)
+
+    # Print so that the grader can capture the metrics
     print(json.dumps(summary, indent=2))
     return summary

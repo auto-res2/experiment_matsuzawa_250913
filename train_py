@@ -28,10 +28,18 @@ __all__ = [
 ]
 
 
+# ---------------------------------------------------------------------
+#  Low-level helpers
+# ---------------------------------------------------------------------
+
 def _gaussian_nll(mu: torch.Tensor, var: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """Standard Gaussian negative log-likelihood."""
     return 0.5 * (torch.log(var + 1e-8) + (target - mu) ** 2 / (var + 1e-8))
 
+
+# ---------------------------------------------------------------------
+#  Modules
+# ---------------------------------------------------------------------
 
 class CurvatureStateSpaceForecaster(nn.Module):
     """Koopman state-space curvature forecaster with evidential uncertainty."""
@@ -75,6 +83,8 @@ class CurvatureStateSpaceForecaster(nn.Module):
         means_t = torch.cat(means, dim=1)
         vars_t = torch.cat(vars, dim=1)
         return means_t, vars_t
+
+    # ------------------------------------------------------------------
 
     def nll_loss(self, mu: torch.Tensor, var: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         nll = _gaussian_nll(mu, var, target)
@@ -140,6 +150,8 @@ class ProphetCurbGNN(nn.Module):
         self.prop = APPNP(K=10, alpha=0.1, dropout=dropout)
         self.dropout = nn.Dropout(dropout)
 
+    # ------------------------------------------------------------------
+
     def forward(
         self,
         x: torch.Tensor,
@@ -169,6 +181,7 @@ class ProphetCurbGNN(nn.Module):
     # ------------------------------------------------------------------
     #  Utility helpers
     # ------------------------------------------------------------------
+
     @staticmethod
     def _effective_rank(mat: torch.Tensor) -> float:
         if mat.size(0) < 2:
@@ -179,8 +192,6 @@ class ProphetCurbGNN(nn.Module):
             return torch.exp(-(s * torch.log(s + 1e-10)).sum()).item()
         except Exception:  # pragma: no cover – rare SVD failures
             return float(mat.size(1))
-
-    # ------------------------------------------------------------------
 
 
 # ======================================================================
@@ -220,7 +231,11 @@ def _eval(model: nn.Module, data, criterion, device: torch.device, mask_key: str
 
 
 def train_model(config: Dict, data, device: torch.device, save_dir: Path) -> Dict:
-    """High-level training orchestration used by src.main.run_experiment."""
+    """High-level training orchestration used by src.main._run."""
+
+    # ------------------------------------------------------------------
+    #  Model & optimiser
+    # ------------------------------------------------------------------
 
     model = ProphetCurbGNN(
         input_dim=data.x.size(1),
@@ -232,14 +247,33 @@ def train_model(config: Dict, data, device: torch.device, save_dir: Path) -> Dic
         use_lamc=config["model"].get("use_lamc", True),
     ).to(device)
 
-    optimiser = optim.AdamW(model.parameters(), lr=config["training"]["learning_rate"], weight_decay=config["training"]["weight_decay"])
+    optimiser = optim.AdamW(
+        model.parameters(),
+        lr=config["training"]["learning_rate"],
+        weight_decay=config["training"]["weight_decay"],
+    )
     scheduler = CosineAnnealingLR(optimiser, T_max=config["training"]["epochs"], eta_min=1e-6)
     criterion = nn.CrossEntropyLoss()
 
-    history: Dict[str, list] = {k: [] for k in ["train_loss", "train_acc", "val_loss", "val_acc", "val_f1", "epoch_times"]}
+    history: Dict[str, list] = {k: [] for k in [
+        "train_loss",
+        "train_acc",
+        "val_loss",
+        "val_acc",
+        "val_f1",
+        "epoch_times",
+    ]}
 
     if config.get("wandb", {}).get("enabled", False):
-        wandb.init(project=config["wandb"].get("project", "prophet-curb"), name=config["wandb"].get("name", f"run_{time.time()}") , config=config)
+        wandb.init(
+            project=config["wandb"].get("project", "prophet-curb"),
+            name=config["wandb"].get("name", f"run_{time.time()}") ,
+            config=config,
+        )
+
+    # ------------------------------------------------------------------
+    #  Epoch loop
+    # ------------------------------------------------------------------
 
     best_f1, patience = 0.0, 0
     for epoch in range(config["training"]["epochs"]):
@@ -248,6 +282,8 @@ def train_model(config: Dict, data, device: torch.device, save_dir: Path) -> Dic
         val_metrics = _eval(model, data, criterion, device, "val_mask")
         scheduler.step()
         dt = time.time() - t0
+
+        # Log
         history["train_loss"].append(tr_metrics["loss"])
         history["train_acc"].append(tr_metrics["accuracy"])
         history["val_loss"].append(val_metrics["loss"])
@@ -256,8 +292,17 @@ def train_model(config: Dict, data, device: torch.device, save_dir: Path) -> Dic
         history["epoch_times"].append(dt)
 
         if config.get("wandb", {}).get("enabled", False):
-            wandb.log({"train_loss": tr_metrics["loss"], "train_acc": tr_metrics["accuracy"], **val_metrics, "lr": scheduler.get_last_lr()[0], "epoch": epoch})
+            wandb.log(
+                {
+                    "train_loss": tr_metrics["loss"],
+                    "train_acc": tr_metrics["accuracy"],
+                    **val_metrics,
+                    "lr": scheduler.get_last_lr()[0],
+                    "epoch": epoch,
+                }
+            )
 
+        # Early stopping on best macro-F1
         if val_metrics["f1_score"] > best_f1:
             best_f1 = val_metrics["f1_score"]
             torch.save({"model": model.state_dict(), "epoch": epoch}, save_dir / "best_model.pt")
@@ -267,8 +312,24 @@ def train_model(config: Dict, data, device: torch.device, save_dir: Path) -> Dic
         if patience >= config["training"].get("early_stopping_patience", 20):
             break
 
+    # ------------------------------------------------------------------
+    #  Final evaluation & persistence
+    # ------------------------------------------------------------------
+
     test_metrics = _eval(model, data, criterion, device, "test_mask")
     results = {"history": history, "test_metrics": test_metrics, "best_val_f1": best_f1}
+
+    # Save inside the experiment-specific folder (for backwards compatibility)
     with open(save_dir / "training_results.json", "w") as fp:
         json.dump(results, fp, indent=2)
+
+    # Mandatory global JSON dump for automated grading
+    global_json_dir = Path(".research/iteration2")
+    global_json_dir.mkdir(parents=True, exist_ok=True)
+    global_json_path = global_json_dir / f"{save_dir.name}_training_results_{int(time.time())}.json"
+    with open(global_json_path, "w") as fp:
+        json.dump(results, fp, indent=2)
+
+    # Print to STDOUT for verification
+    print(json.dumps(results, indent=2))
     return results

@@ -1,7 +1,7 @@
 # Full-scale configuration (multi-GPU, full datasets)
 experiment_name: prophet_curb_full
 seed: 42
-output_dir: ./.research/iteration1
+output_dir: ./.research/iteration2
 data_root: ./data
 
 datasets:
