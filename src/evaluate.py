@@ -59,7 +59,10 @@ def compute_equalised_odds(pred: Tensor, lab: Tensor, sens: Tensor) -> Dict[str,
     }
 
 
-def evaluate_model(model, loader, cfg, device="cuda") -> Tuple[Dict, Tensor, Tensor]:
+def evaluate_model(model, loader, cfg, device: Optional[str] = None) -> Tuple[Dict, Tensor, Tensor]:
+    # Auto-select device if not provided
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
     model.eval().to(device)
     preds, labs = [], []
     with torch.no_grad():
@@ -71,8 +74,9 @@ def evaluate_model(model, loader, cfg, device="cuda") -> Tuple[Dict, Tensor, Ten
     acc = accuracy_score(labs, preds.argmax(1))
     prec, rec, f1, _ = precision_recall_fscore_support(labs, preds.argmax(1), average="weighted")
     tail_ece = compute_tail_ece(preds, labs)
+    # Dummy sensitive attribute for smoke/fallback
     sens = torch.zeros_like(labs)
-    sens[len(labs) // 2 :] = 1  # dummy sensitive attr for smoke/fallback
+    sens[len(labs) // 2 :] = 1
     fairness = compute_equalised_odds(preds, labs, sens)
     metrics = {
         "accuracy": float(acc),

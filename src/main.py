@@ -26,6 +26,10 @@ from .train import (
 from .evaluate import evaluate_model, save_evaluation_results
 
 
+ITER_DIR = Path(".research/iteration3")
+IMG_DIR = ITER_DIR / "images"
+
+
 def _load_yaml(path: str):
     with open(path) as f:
         return yaml.safe_load(f)
@@ -48,11 +52,19 @@ def _run_pipeline(cfg: dict):
         for cid in range(fed_cfg.num_clients)
     ]
     test_loader = dataset.get_test_loader()
+
     metrics = train_federated(fed_cfg, clients, server, test_loader)
-    save_training_results(metrics, ".research/iteration2/exp_smoke_train.json")
-    plot_training_curves(metrics, ".research/iteration2/images/smoke_curves.png")
+
+    # ---------- persist ---------- #
+    train_json_path = ITER_DIR / "exp_train.json"
+    img_path = IMG_DIR / "train_curves.png"
+    eval_json_path = ITER_DIR / "exp_eval.json"
+
+    save_training_results(metrics, str(train_json_path))
+    plot_training_curves(metrics, str(img_path))
+
     eval_metrics, _, _ = evaluate_model(server.model, test_loader, fed_cfg)
-    save_evaluation_results(eval_metrics, ".research/iteration2/exp_smoke_eval.json")
+    save_evaluation_results(eval_metrics, str(eval_json_path))
     return eval_metrics
 
 
@@ -62,8 +74,8 @@ def main():
     parser.add_argument("--full-experiment", action="store_true", help="run full experiment (will first run smoke-test)")
     args = parser.parse_args()
 
-    Path(".research/iteration2/images").mkdir(parents=True, exist_ok=True)
-    Path(".research/iteration2").mkdir(parents=True, exist_ok=True)
+    IMG_DIR.mkdir(parents=True, exist_ok=True)
+    ITER_DIR.mkdir(parents=True, exist_ok=True)
 
     if not (args.smoke_test or args.full_experiment):
         print("Specify --smoke-test or --full-experiment")

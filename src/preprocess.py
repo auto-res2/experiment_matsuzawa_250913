@@ -87,10 +87,8 @@ class FederatedGraphDataset:
         return DataLoader([self.client_data[cid]], batch_size=1)
 
     def get_test_loader(self) -> DataLoader:
-        test_nodes = self.data.test_mask.nonzero(as_tuple=True)[0]
-        return DataLoader([
-            Data(x=self.data.x[test_nodes], edge_index=self.data.edge_index, y=self.data.y[test_nodes])
-        ])
+        # Return the full graph to avoid index-out-of-range issues during message passing
+        return DataLoader([self.data], batch_size=1)
 
 
 def prepare_federated_data(cfg: dict) -> Tuple[List[DataLoader], DataLoader]:

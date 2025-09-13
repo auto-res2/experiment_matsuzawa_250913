@@ -10,6 +10,7 @@ import json
 import os
 from collections import defaultdict
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
@@ -22,7 +23,6 @@ from scipy.stats import levy_stable
 from sklearn.metrics import accuracy_score, average_precision_score
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree
-from pathlib import Path
 
 # Publication-quality plotting defaults
 plt.style.use("seaborn-v0_8-paper")
@@ -143,9 +143,10 @@ class CurvatureContrastiveAlignment(nn.Module):
 
     def forward(self, x_l: torch.Tensor, x_g: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:  # noqa: D401,E501
         row, col = edge_index
-        deg = degree(col, x_l.size(0), dtype=x_l.dtype, device=x_l.device)
+        # torch_geometric>=2.6 drops the `device` argument
+        deg = degree(col, x_l.size(0), dtype=x_l.dtype)
         curv_l = self._forman(edge_index, deg)
-        curv_g = curv_l.clone()  # identical indices
+        curv_g = curv_l.clone()  # identical indices in this placeholder implementation
         z_l = self.projector(curv_l.unsqueeze(-1).expand(-1, x_l.size(1)))
         z_g = self.projector(curv_g.unsqueeze(-1).expand(-1, x_l.size(1)))
         idx = torch.randperm(z_l.size(0), device=z_l.device)[: min(128, z_l.size(0))]
@@ -196,7 +197,7 @@ class CommSMiGS(nn.Module):
         self.history.append(forecast.detach())
         if variance > self.theta:
             return True
-        est_energy = 50.0
+        est_energy = 50.0  # placeholder constant cost
         if self.energy_used + est_energy > power_cap:
             return False
         objective = self.energy_lambda * est_energy + variance.item()
@@ -225,7 +226,7 @@ class ByzantineResilientFlow(nn.Module):
         if clipped.numel() == 0:
             clipped = stacked[:1]
         median = clipped.mean(0)
-        for _ in range(5):
+        for _ in range(5):  # Weiszfeld iterations
             dists = torch.norm(clipped - median, dim=-1)
             weights = 1.0 / (dists + 1e-8)
             median = (clipped * weights.unsqueeze(-1)).sum(0) / weights.sum()
@@ -244,7 +245,7 @@ class GCNLayer(MessagePassing):
         edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
         x = self.lin(x)
         row, col = edge_index
-        deg = degree(col, x.size(0), dtype=x.dtype, device=x.device)
+        deg = degree(col, x.size(0), dtype=x.dtype)  # removed deprecated `device` arg
         deg_inv_sqrt = deg.pow(-0.5)
         deg_inv_sqrt[torch.isinf(deg_inv_sqrt)] = 0
         norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
@@ -266,7 +267,9 @@ class FedC3PO(nn.Module):
         self.coca = CurvatureContrastiveAlignment(cfg.hidden_dim)
         self.fdp = FairDPCurvaturePerturbation(cfg.dp_epsilon, cfg.dp_delta, cfg.fairness_gamma)
         self.scheduler = CommSMiGS(cfg.scheduler_theta, cfg.energy_lambda)
-        self.byz_def = ByzantineResilientFlow(cfg.spectral_clip_percentile, int(cfg.byzantine_fraction * cfg.num_clients))
+        self.byz_def = ByzantineResilientFlow(
+            cfg.spectral_clip_percentile, int(cfg.byzantine_fraction * cfg.num_clients)
+        )
         self.gnn = nn.ModuleList([GCNLayer(cfg.hidden_dim, cfg.hidden_dim) for _ in range(cfg.num_layers)])
         self.output_proj = nn.Linear(cfg.hidden_dim, num_classes)
         self.metrics = defaultdict(list)
@@ -279,7 +282,7 @@ class FedC3PO(nn.Module):
             h = F.dropout(h, p=0.1, training=self.training)
         return self.output_proj(h)
 
-    # M6 – Shapley-Curv (placeholder for brevity)
+    # M6 – Shapley-Curv (placeholder)
     def compute_shapley_curvature(self, x: torch.Tensor, edge_index: torch.Tensor) -> Dict[int, float]:  # noqa: D401,E501
         return {}
 
@@ -289,7 +292,9 @@ class FederatedClient:
 
     def __init__(self, cid: int, model: FedC3PO, loader, cfg: FedC3POConfig):
         self.cid, self.model, self.loader, self.cfg = cid, model, loader, cfg
-        self.opt = torch.optim.AdamW(model.parameters(), lr=cfg.learning_rate, weight_decay=cfg.weight_decay)
+        self.opt = torch.optim.AdamW(
+            model.parameters(), lr=cfg.learning_rate, weight_decay=cfg.weight_decay
+        )
         self.sketch = CountMinSketch(width=cfg.sketch_rows, depth=4)
         self.is_byzantine = False
 
@@ -373,15 +378,21 @@ def train_federated(cfg: FedC3POConfig, clients: List[FederatedClient], server: 
             forecast = torch.randn(cfg.hidden_dim)
             if c.model.scheduler.should_send(forecast):
                 updates.append(up)
-                bits += up.numel() * 32
-                energy += 50.0
+                bits += up.numel() * 32  # float32
+                energy += 50.0  # placeholder
         server.aggregate(updates)
         res = server.evaluate(test_loader)
         metrics["global_accuracy"].append(res["accuracy"])
         metrics["communication"]["bits_sent"].append(bits)
         metrics["communication"]["energy_joules"].append(energy)
-        print(f"Global Acc: {res['accuracy']:.4f} | Comm: {bits/8/1024/1024:.2f} MB, {energy:.0f} J")
-        if len(metrics["global_accuracy"]) > 10 and max(metrics["global_accuracy"][-10:]) - min(metrics["global_accuracy"][-10:]) < 1e-3:
+        print(
+            f"Global Acc: {res['accuracy']:.4f} | Comm: {bits/8/1024/1024:.2f} MB, {energy:.0f} J"
+        )
+        # Simple convergence check
+        if (
+            len(metrics["global_accuracy"]) > 10
+            and max(metrics["global_accuracy"][-10:]) - min(metrics["global_accuracy"][-10:]) < 1e-3
+        ):
             print("Converged – early stop.")
             break
     return metrics
