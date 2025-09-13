@@ -1,0 +1,142 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+warning: No `requires-python` value found in the workspace. Defaulting to `>=3.11`.
+Resolved 82 packages in 209ms
+   Building fedc3po @ file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913
+Downloading nvidia-cufft-cu12 (184.2MiB)
+Downloading nvidia-cusparse-cu12 (274.9MiB)
+Downloading nvidia-cusparselt-cu12 (273.9MiB)
+Downloading triton (148.3MiB)
+Downloading torch-geometric (1.1MiB)
+Downloading scikit-learn (9.3MiB)
+Downloading nvidia-cusolver-cu12 (255.1MiB)
+Downloading scipy (34.2MiB)
+Downloading torch (846.9MiB)
+Downloading nvidia-cublas-cu12 (566.8MiB)
+Downloading nvidia-nccl-cu12 (307.4MiB)
+Downloading nvidia-cudnn-cu12 (674.0MiB)
+      Built fedc3po @ file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913
+ Downloading torch-geometric
+ Downloading scikit-learn
+ Downloading scipy
+ Downloading triton
+ Downloading nvidia-cufft-cu12
+ Downloading nvidia-cusolver-cu12
+ Downloading nvidia-cusparse-cu12
+ Downloading nvidia-cusparselt-cu12
+ Downloading nvidia-nccl-cu12
+ Downloading nvidia-cublas-cu12
+ Downloading nvidia-cudnn-cu12
+ Downloading torch
+Prepared 20 packages in 59.94s
+Installed 67 packages in 5.72s
+ + aiohappyeyeballs==2.6.1
+ + aiohttp==3.12.15
+ + aiosignal==1.4.0
+ + attrs==25.3.0
+ + certifi==2025.8.3
+ + charset-normalizer==3.4.3
+ + contourpy==1.3.3
+ + cycler==0.12.1
+ + fedc3po==1.0.0 (from file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913)
+ + filelock==3.19.1
+ + fonttools==4.59.2
+ + frozenlist==1.7.0
+ + fsspec==2025.9.0
+ + hf-xet==1.1.10
+ + huggingface-hub==0.34.4
+ + idna==3.10
+ + jinja2==3.1.6
+ + joblib==1.5.2
+ + kiwisolver==1.4.9
+ + littleutils==0.2.4
+ + markupsafe==3.0.2
+ + matplotlib==3.10.6
+ + mpmath==1.3.0
+ + multidict==6.6.4
+ + networkx==3.5
+ + numpy==2.3.3
+ + nvidia-cublas-cu12==12.8.4.1
+ + nvidia-cuda-cupti-cu12==12.8.90
+ + nvidia-cuda-nvrtc-cu12==12.8.93
+ + nvidia-cuda-runtime-cu12==12.8.90
+ + nvidia-cudnn-cu12==9.10.2.21
+ + nvidia-cufft-cu12==11.3.3.83
+ + nvidia-cufile-cu12==1.13.1.3
+ + nvidia-curand-cu12==10.3.9.90
+ + nvidia-cusolver-cu12==11.7.3.90
+ + nvidia-cusparse-cu12==12.5.8.93
+ + nvidia-cusparselt-cu12==0.7.1
+ + nvidia-nccl-cu12==2.27.3
+ + nvidia-nvjitlink-cu12==12.8.93
+ + nvidia-nvtx-cu12==12.8.90
+ + ogb==1.3.6
+ + outdated==0.2.2
+ + packaging==25.0
+ + pandas==2.3.2
+ + pillow==11.3.0
+ + propcache==0.3.2
+ + psutil==7.0.0
+ + pyparsing==3.2.4
+ + python-dateutil==2.9.0.post0
+ + pytz==2025.2
+ + pyyaml==6.0.2
+ + requests==2.32.5
+ + scikit-learn==1.7.2
+ + scipy==1.16.2
+ + seaborn==0.13.2
+ + setuptools==80.9.0
+ + six==1.17.0
+ + sympy==1.14.0
+ + threadpoolctl==3.6.0
+ + torch==2.8.0
+ + torch-geometric==2.6.1
+ + tqdm==4.67.1
+ + triton==3.4.0
+ + typing-extensions==4.15.0
+ + tzdata==2025.2
+ + urllib3==2.5.0
+ + yarl==1.20.1
+warning: No `requires-python` value found in the workspace. Defaulting to `>=3.11`.
+/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/outdated/__init__.py:36: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import parse_version
+  0%|          | 0/81 [00:00<?, ?it/s]Downloaded 0.00 GB:   0%|          | 0/81 [00:01<?, ?it/s]Downloaded 0.00 GB:   1%|          | 1/81 [00:01<02:15,  1.70s/it]Downloaded 0.00 GB:   1%|          | 1/81 [00:03<02:15,  1.70s/it]Downloaded 0.00 GB:   2%|▏         | 2/81 [00:03<02:02,  1.55s/it]Downloaded 0.00 GB:   2%|▏         | 2/81 [00:04<02:02,  1.55s/it]Downloaded 0.00 GB:   4%|▎         | 3/81 [00:04<01:57,  1.51s/it]Downloaded 0.00 GB:   4%|▎         | 3/81 [00:06<01:57,  1.51s/it]Downloaded 0.00 GB:   5%|▍         | 4/81 [00:06<01:54,  1.48s/it]Downloaded 0.00 GB:   5%|▍         | 4/81 [00:07<01:54,  1.48s/it]Downloaded 0.00 GB:   6%|▌         | 5/81 [00:07<01:52,  1.48s/it]Downloaded 0.01 GB:   6%|▌         | 5/81 [00:09<01:52,  1.48s/it]Downloaded 0.01 GB:   7%|▋         | 6/81 [00:09<01:52,  1.50s/it]Downloaded 0.01 GB:   7%|▋         | 6/81 [00:10<01:52,  1.50s/it]Downloaded 0.01 GB:   9%|▊         | 7/81 [00:10<01:51,  1.51s/it]Downloaded 0.01 GB:   9%|▊         | 7/81 [00:12<01:51,  1.51s/it]Downloaded 0.01 GB:  10%|▉         | 8/81 [00:12<01:50,  1.51s/it]Downloaded 0.01 GB:  10%|▉         | 8/81 [00:13<01:50,  1.51s/it]Downloaded 0.01 GB:  11%|█         | 9/81 [00:13<01:48,  1.50s/it]Downloaded 0.01 GB:  11%|█         | 9/81 [00:15<01:48,  1.50s/it]Downloaded 0.01 GB:  12%|█▏        | 10/81 [00:15<01:46,  1.50s/it]Downloaded 0.01 GB:  12%|█▏        | 10/81 [00:15<01:46,  1.50s/it]Downloaded 0.01 GB:  12%|█▏        | 10/81 [00:15<01:46,  1.50s/it]Downloaded 0.01 GB:  12%|█▏        | 10/81 [00:15<01:46,  1.50s/it]Downloaded 0.01 GB:  16%|█▌        | 13/81 [00:15<00:45,  1.49it/s]Downloaded 0.01 GB:  16%|█▌        | 13/81 [00:15<00:45,  1.49it/s]Downloaded 0.01 GB:  16%|█▌        | 13/81 [00:15<00:45,  1.49it/s]Downloaded 0.02 GB:  16%|█▌        | 13/81 [00:15<00:45,  1.49it/s]Downloaded 0.02 GB:  20%|█▉        | 16/81 [00:15<00:25,  2.57it/s]Downloaded 0.02 GB:  20%|█▉        | 16/81 [00:15<00:25,  2.57it/s]Downloaded 0.02 GB:  20%|█▉        | 16/81 [00:15<00:25,  2.57it/s]Downloaded 0.02 GB:  20%|█▉        | 16/81 [00:15<00:25,  2.57it/s]Downloaded 0.02 GB:  23%|██▎       | 19/81 [00:15<00:15,  3.93it/s]Downloaded 0.02 GB:  23%|██▎       | 19/81 [00:15<00:15,  3.93it/s]Downloaded 0.02 GB:  23%|██▎       | 19/81 [00:15<00:15,  3.93it/s]Downloaded 0.02 GB:  23%|██▎       | 19/81 [00:15<00:15,  3.93it/s]Downloaded 0.02 GB:  27%|██▋       | 22/81 [00:15<00:10,  5.60it/s]Downloaded 0.02 GB:  27%|██▋       | 22/81 [00:15<00:10,  5.60it/s]Downloaded 0.02 GB:  27%|██▋       | 22/81 [00:15<00:10,  5.60it/s]Downloaded 0.02 GB:  27%|██▋       | 22/81 [00:15<00:10,  5.60it/s]Downloaded 0.02 GB:  31%|███       | 25/81 [00:15<00:07,  7.55it/s]Downloaded 0.03 GB:  31%|███       | 25/81 [00:15<00:07,  7.55it/s]Downloaded 0.03 GB:  31%|███       | 25/81 [00:15<00:07,  7.55it/s]Downloaded 0.03 GB:  33%|███▎      | 27/81 [00:15<00:06,  8.72it/s]Downloaded 0.03 GB:  33%|███▎      | 27/81 [00:15<00:06,  8.72it/s]Downloaded 0.03 GB:  33%|███▎      | 27/81 [00:15<00:06,  8.72it/s]Downloaded 0.03 GB:  33%|███▎      | 27/81 [00:15<00:06,  8.72it/s]Downloaded 0.03 GB:  37%|███▋      | 30/81 [00:15<00:04, 11.11it/s]Downloaded 0.03 GB:  37%|███▋      | 30/81 [00:15<00:04, 11.11it/s]Downloaded 0.03 GB:  37%|███▋      | 30/81 [00:15<00:04, 11.11it/s]Downloaded 0.03 GB:  37%|███▋      | 30/81 [00:16<00:04, 11.11it/s]Downloaded 0.03 GB:  41%|████      | 33/81 [00:16<00:03, 13.41it/s]Downloaded 0.03 GB:  41%|████      | 33/81 [00:16<00:03, 13.41it/s]Downloaded 0.03 GB:  41%|████      | 33/81 [00:16<00:03, 13.41it/s]Downloaded 0.04 GB:  41%|████      | 33/81 [00:16<00:03, 13.41it/s]Downloaded 0.04 GB:  44%|████▍     | 36/81 [00:16<00:02, 15.52it/s]Downloaded 0.04 GB:  44%|████▍     | 36/81 [00:16<00:02, 15.52it/s]Downloaded 0.04 GB:  44%|████▍     | 36/81 [00:16<00:02, 15.52it/s]Downloaded 0.04 GB:  44%|████▍     | 36/81 [00:16<00:02, 15.52it/s]Downloaded 0.04 GB:  48%|████▊     | 39/81 [00:16<00:02, 17.38it/s]Downloaded 0.04 GB:  48%|████▊     | 39/81 [00:16<00:02, 17.38it/s]Downloaded 0.04 GB:  48%|████▊     | 39/81 [00:16<00:02, 17.38it/s]Downloaded 0.04 GB:  48%|████▊     | 39/81 [00:16<00:02, 17.38it/s]Downloaded 0.04 GB:  52%|█████▏    | 42/81 [00:16<00:02, 18.80it/s]Downloaded 0.04 GB:  52%|█████▏    | 42/81 [00:16<00:02, 18.80it/s]Downloaded 0.04 GB:  52%|█████▏    | 42/81 [00:16<00:02, 18.80it/s]Downloaded 0.04 GB:  52%|█████▏    | 42/81 [00:16<00:02, 18.80it/s]Downloaded 0.04 GB:  56%|█████▌    | 45/81 [00:16<00:01, 20.04it/s]Downloaded 0.04 GB:  56%|█████▌    | 45/81 [00:16<00:01, 20.04it/s]Downloaded 0.05 GB:  56%|█████▌    | 45/81 [00:16<00:01, 20.04it/s]Downloaded 0.05 GB:  56%|█████▌    | 45/81 [00:16<00:01, 20.04it/s]Downloaded 0.05 GB:  59%|█████▉    | 48/81 [00:16<00:01, 20.97it/s]Downloaded 0.05 GB:  59%|█████▉    | 48/81 [00:16<00:01, 20.97it/s]Downloaded 0.05 GB:  59%|█████▉    | 48/81 [00:16<00:01, 20.97it/s]Downloaded 0.05 GB:  59%|█████▉    | 48/81 [00:16<00:01, 20.97it/s]Downloaded 0.05 GB:  63%|██████▎   | 51/81 [00:16<00:01, 21.64it/s]Downloaded 0.05 GB:  63%|██████▎   | 51/81 [00:16<00:01, 21.64it/s]Downloaded 0.05 GB:  63%|██████▎   | 51/81 [00:16<00:01, 21.64it/s]Downloaded 0.05 GB:  63%|██████▎   | 51/81 [00:17<00:01, 21.64it/s]Downloaded 0.05 GB:  67%|██████▋   | 54/81 [00:17<00:01, 22.13it/s]Downloaded 0.05 GB:  67%|██████▋   | 54/81 [00:17<00:01, 22.13it/s]Downloaded 0.05 GB:  67%|██████▋   | 54/81 [00:17<00:01, 22.13it/s]Downloaded 0.06 GB:  67%|██████▋   | 54/81 [00:17<00:01, 22.13it/s]Downloaded 0.06 GB:  70%|███████   | 57/81 [00:17<00:01, 22.49it/s]Downloaded 0.06 GB:  70%|███████   | 57/81 [00:17<00:01, 22.49it/s]Downloaded 0.06 GB:  70%|███████   | 57/81 [00:17<00:01, 22.49it/s]Downloaded 0.06 GB:  70%|███████   | 57/81 [00:17<00:01, 22.49it/s]Downloaded 0.06 GB:  74%|███████▍  | 60/81 [00:17<00:01, 18.40it/s]Downloaded 0.06 GB:  74%|███████▍  | 60/81 [00:17<00:01, 18.40it/s]Downloaded 0.06 GB:  74%|███████▍  | 60/81 [00:17<00:01, 18.40it/s]Downloaded 0.06 GB:  74%|███████▍  | 60/81 [00:17<00:01, 18.40it/s]Downloaded 0.06 GB:  78%|███████▊  | 63/81 [00:17<00:00, 19.63it/s]Downloaded 0.06 GB:  78%|███████▊  | 63/81 [00:17<00:00, 19.63it/s]Downloaded 0.06 GB:  78%|███████▊  | 63/81 [00:17<00:00, 19.63it/s]Downloaded 0.06 GB:  78%|███████▊  | 63/81 [00:17<00:00, 19.63it/s]Downloaded 0.06 GB:  81%|████████▏ | 66/81 [00:17<00:00, 20.60it/s]Downloaded 0.07 GB:  81%|████████▏ | 66/81 [00:17<00:00, 20.60it/s]Downloaded 0.07 GB:  81%|████████▏ | 66/81 [00:17<00:00, 20.60it/s]Downloaded 0.07 GB:  81%|████████▏ | 66/81 [00:17<00:00, 20.60it/s]Downloaded 0.07 GB:  85%|████████▌ | 69/81 [00:17<00:00, 21.35it/s]Downloaded 0.07 GB:  85%|████████▌ | 69/81 [00:17<00:00, 21.35it/s]Downloaded 0.07 GB:  85%|████████▌ | 69/81 [00:17<00:00, 21.35it/s]Downloaded 0.07 GB:  85%|████████▌ | 69/81 [00:17<00:00, 21.35it/s]Downloaded 0.07 GB:  89%|████████▉ | 72/81 [00:17<00:00, 21.88it/s]Downloaded 0.07 GB:  89%|████████▉ | 72/81 [00:17<00:00, 21.88it/s]Downloaded 0.07 GB:  89%|████████▉ | 72/81 [00:17<00:00, 21.88it/s]Downloaded 0.07 GB:  89%|████████▉ | 72/81 [00:18<00:00, 21.88it/s]Downloaded 0.07 GB:  93%|█████████▎| 75/81 [00:18<00:00, 22.34it/s]Downloaded 0.07 GB:  93%|█████████▎| 75/81 [00:18<00:00, 22.34it/s]Downloaded 0.08 GB:  93%|█████████▎| 75/81 [00:18<00:00, 22.34it/s]Downloaded 0.08 GB:  93%|█████████▎| 75/81 [00:18<00:00, 22.34it/s]Downloaded 0.08 GB:  96%|█████████▋| 78/81 [00:18<00:00, 22.50it/s]Downloaded 0.08 GB:  96%|█████████▋| 78/81 [00:18<00:00, 22.50it/s]Downloaded 0.08 GB:  96%|█████████▋| 78/81 [00:18<00:00, 22.50it/s]Downloaded 0.08 GB:  96%|█████████▋| 78/81 [00:18<00:00, 22.50it/s]Downloaded 0.08 GB: 100%|██████████| 81/81 [00:18<00:00,  4.46it/s]
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [00:00<00:00, 18558.87it/s]
+/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/torch_geometric/deprecation.py:26: UserWarning: 'data.DataLoader' is deprecated, use 'loader.DataLoader' instead
+  warnings.warn(out)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 92, in <module>
+    main()
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 75, in main
+    smoke_metrics = _run_pipeline(smoke_cfg)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 51, in _run_pipeline
+    metrics = train_federated(fed_cfg, clients, server, test_loader)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/train.py", line 369, in train_federated
+    loc_metrics = c.train_local(cfg.local_epochs)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/train.py", line 303, in train_local
+    out = self.model(x, ei)
+          ^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/train.py", line 278, in forward
+    h = F.relu(layer(h, edge_index))
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/train.py", line 247, in forward
+    deg = degree(col, x.size(0), dtype=x.dtype, device=x.device)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: degree() got an unexpected keyword argument 'device'

@@ -1,0 +1,17 @@
+=== uv sync start Sat Sep 13 03:33:31 PM UTC 2025 ===
+=== uv install end Sat Sep 13 03:34:37 PM UTC 2025 ===
+=== [PHASE 1/2] Smoke test start Sat Sep 13 03:34:37 PM UTC 2025 ===
+===== SMOKE TEST =====
+Downloading http://snap.stanford.edu/ogb/data/nodeproppred/arxiv.zip
+Extracting data/arxiv.zip
+Loading necessary files...
+This might take a while.
+Processing graphs...
+Saving...
+Creating 3 federated partitions for ogbn-arxiv
+
+============================================================
+Starting FedC3PO federated training – rounds: 3
+============================================================
+
+--- Round 1/3 ---
