@@ -1,13 +1,9 @@
-# Full-scale configuration for iteration4.  The values are still modest to
-# comply with the automated execution budget but significantly larger than the
-# smoke version.
-
-output_dir: ".research/iteration4/outputs/full"
+# Full experimental run (truncated for demo)
+output_dir: ".research/iteration7/outputs/full"
 
 pka:
   num_pieces: 16
-  feature_dim: 4  # keep channel dim consistent with the toy latent – this is
-                  # a *research stub*, real runs would use 1280.
+  feature_dim: 1280
 
 hrcs:
   num_tiers: 3
@@ -20,16 +16,5 @@ cf_noise:
   noise_sigma: 0.05
 
 inference:
-  num_steps: 4   # still small to avoid GPU/CPU timeouts
+  num_steps: 32
 
-training:
-  num_epochs: 2
-  num_batches: 4
-  batch_size: 2
-  learning_rate: 5e-5
-  save_every: 5
-  # Additional tweaks for longer runs can be added here
-
-# ---------------------------------------------------------------------------
-# End of config
-# ---------------------------------------------------------------------------
