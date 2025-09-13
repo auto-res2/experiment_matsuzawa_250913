@@ -1,0 +1,88 @@
+import json
+import os
+from pathlib import Path
+from typing import List
+
+import numpy as np
+import torch
+from torch_geometric.data import Data
+from torch_geometric.transforms import NormalizeFeatures
+from torch_geometric.utils import to_undirected
+from torch_geometric.datasets import Planetoid, Amazon
+
+# -----------------------------------------------------------------------------
+#  Utility helpers -------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+def _mask_split(data: Data, tr: float = 0.6, val: float = 0.2) -> Data:
+    n = data.num_nodes
+    idx = torch.randperm(n)
+    tr_n = int(tr * n); val_n = int(val * n)
+    data.train_mask = torch.zeros(n, dtype=torch.bool)
+    data.val_mask = torch.zeros(n, dtype=torch.bool)
+    data.test_mask = torch.zeros(n, dtype=torch.bool)
+    data.train_mask[idx[:tr_n]] = True
+    data.val_mask[idx[tr_n: tr_n+val_n]] = True
+    data.test_mask[idx[tr_n+val_n:]] = True
+    return data
+
+
+def _inject_minority(data: Data, ratio: float = 0.03) -> Data:
+    num_cls = int(data.y.max()) + 1
+    m = int(ratio * data.num_nodes)
+    idx = torch.randperm(data.num_nodes)[:m]
+    data.y[idx] = num_cls  # new class id
+    data.minority_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
+    data.minority_mask[idx] = True
+    data.x[idx] += 0.5 * torch.randn_like(data.x[idx])
+    return data
+
+
+# -----------------------------------------------------------------------------
+#  Data loading ----------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+def load_meta_train_graphs(root: str = "data") -> List[Data]:
+    root = Path(root); root.mkdir(exist_ok=True)
+    out: List[Data] = []
+    for name in ["Cora", "CiteSeer", "PubMed"]:
+        ds = Planetoid(root=str(root / name), name=name, transform=NormalizeFeatures())
+        g = _mask_split(ds[0]); g = _inject_minority(g)
+        out.append(g)
+    for name in ["Computers", "Photo"]:
+        ds = Amazon(root=str(root / "amazon" / name), name=name, transform=NormalizeFeatures())
+        g = _mask_split(ds[0]); g = _inject_minority(g)
+        out.append(g)
+    return out
+
+
+def _syn_graph(n: int, f: int, c: int) -> Data:
+    x = torch.randn(n, f)
+    ei = torch.randint(0, n, (2, n * 5))
+    ei = to_undirected(ei)
+    y = torch.randint(0, c, (n,))
+    g = Data(x=x, edge_index=ei, y=y)
+    return _inject_minority(_mask_split(g))
+
+
+def load_meta_test_graphs() -> List[Data]:
+    return [_syn_graph(3000, 64, 10), _syn_graph(40000, 128, 2), _syn_graph(55000, 256, 3)]
+
+
+# -----------------------------------------------------------------------------
+#  Pre-/post-processing helpers -------------------------------------------------
+# -----------------------------------------------------------------------------
+
+def save_preprocessed(graphs: List[Data], folder: str):
+    folder = Path(folder); folder.mkdir(parents=True, exist_ok=True)
+    for i, g in enumerate(graphs):
+        torch.save(g, folder / f"graph_{i}.pt")
+    with open(folder / "stats.json", "w") as f:
+        json.dump([{ "nodes": g.num_nodes, "edges": g.edge_index.size(1)} for g in graphs], f)
+
+
+def load_preprocessed(folder: str) -> List[Data]:
+    graphs = []
+    for p in sorted(Path(folder).glob("graph_*.pt")):
+        graphs.append(torch.load(p))
+    return graphs

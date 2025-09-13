@@ -1,0 +1,20 @@
+name: smoke_test
+seed: 42
+
+hidden_dim: 128
+num_layers: 2
+chebyshev_K: 4
+dropout: 0.3
+num_buckets: 4
+
+epochs: 5
+tasks_per_epoch: 3
+lr: 0.001
+meta_lr: 0.0005
+inner_lr: 0.003
+inner_steps: 3
+spectral_weight: 0.5
+causal_weight: 0.1
+
+run_exp1: true
+meta_learning: true

@@ -1,0 +1,329 @@
+import os
+import warnings
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch_geometric.data import Batch, Data
+from torch_geometric.nn import MessagePassing
+from torch_geometric.utils import (
+    add_self_loops,
+    degree,
+    to_scipy_sparse_matrix,
+)
+from scipy.sparse import linalg as splinalg
+import scipy.sparse as sp
+
+warnings.filterwarnings("ignore")
+
+# -----------------------------------------------------------------------------
+#  Spectral Convolution Layer --------------------------------------------------
+# -----------------------------------------------------------------------------
+
+
+class SpectralConv(MessagePassing):
+    """Chebyshev‐polynomial spectral convolution."""
+
+    def __init__(self, in_channels: int, out_channels: int, K: int = 3):
+        super().__init__(aggr="add")
+        self.K = K
+        self.weight = nn.Parameter(torch.empty(K, in_channels, out_channels))
+        self.bias = nn.Parameter(torch.empty(out_channels))
+        self.reset_parameters()
+
+    # ------------------------------------------------------------------
+    def reset_parameters(self):
+        nn.init.xavier_uniform_(self.weight)
+        nn.init.zeros_(self.bias)
+
+    # ------------------------------------------------------------------
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        edge_index, edge_weight = add_self_loops(
+            edge_index, edge_weight, num_nodes=x.size(0)
+        )
+        row, col = edge_index
+        deg = degree(col, x.size(0), dtype=x.dtype)
+        deg_inv_sqrt = deg.pow(-0.5)
+        deg_inv_sqrt[deg_inv_sqrt == float("inf")] = 0.0
+        norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
+
+        # --- Chebyshev recursion --------------------------------------
+        tx_0 = x
+        out = torch.matmul(tx_0, self.weight[0])
+        if self.K > 1:
+            tx_1 = self.propagate(edge_index, x=x, norm=norm)
+            out = out + torch.matmul(tx_1, self.weight[1])
+            for k in range(2, self.K):
+                tx_2 = 2 * self.propagate(edge_index, x=tx_1, norm=norm) - tx_0
+                out = out + torch.matmul(tx_2, self.weight[k])
+                tx_0, tx_1 = tx_1, tx_2
+        return out + self.bias
+
+    # ------------------------------------------------------------------
+    def message(self, x_j: torch.Tensor, norm: torch.Tensor) -> torch.Tensor:
+        return norm.view(-1, 1) * x_j
+
+
+# -----------------------------------------------------------------------------
+#  MeLOS – Meta-Learnt Operator Synthesiser -----------------------------------
+# -----------------------------------------------------------------------------
+
+
+class MeLOS(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int = 256,
+        out_dim: Optional[int] = None,
+        num_layers: int = 4,
+        K: int = 8,
+        dropout: float = 0.5,
+    ):
+        super().__init__()
+        if out_dim is None:
+            out_dim = in_dim
+        self.num_layers = num_layers
+        self.dropout = dropout
+
+        self.convs = nn.ModuleList()
+        self.norms = nn.ModuleList()
+        self.shock_gates = nn.ModuleList()
+        for i in range(num_layers):
+            in_c = in_dim if i == 0 else hidden_dim
+            out_c = out_dim if i == num_layers - 1 else hidden_dim
+            self.convs.append(SpectralConv(in_c, out_c, K))
+            if i < num_layers - 1:
+                self.norms.append(nn.LayerNorm(out_c))
+                self.shock_gates.append(nn.Linear(out_c, out_c))
+
+        # meta-learning lrs (learnable for MAML-style)
+        self.meta_lr = nn.Parameter(torch.tensor(1e-2))
+        self.meta_momentum = nn.Parameter(torch.tensor(0.9))
+
+    # ------------------------------------------------------------------
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: Optional[torch.Tensor] = None,
+        apply_shock_gate: bool = True,
+    ) -> torch.Tensor:
+        for i, conv in enumerate(self.convs):
+            x = conv(x, edge_index, edge_weight)
+            if i < self.num_layers - 1:
+                x = self.norms[i](x)
+                if apply_shock_gate:
+                    gate = torch.sigmoid(self.shock_gates[i](x))
+                    x = x * gate
+                x = F.relu(x)
+                x = F.dropout(x, p=self.dropout, training=self.training)
+        return x
+
+    # ------------------------------------------------------------------
+    def compute_spectral_loss(
+        self, edge_index: torch.Tensor, num_nodes: int, num_buckets: int = 8
+    ) -> torch.Tensor:
+        """Min-max spectral distortion loss (bucket-wise)."""
+        adj = to_scipy_sparse_matrix(edge_index.cpu(), num_nodes=num_nodes).astype(float)
+        lap = sp.diags(np.asarray(adj.sum(1)).flatten()) - adj
+        try:
+            k = min(num_buckets * 2, num_nodes - 2)
+            eigvals = splinalg.eigsh(lap, k=k, which="SM", return_eigenvectors=False)
+            eigvals = torch.as_tensor(eigvals, dtype=torch.float32)
+            lam_max = eigvals.max()
+            bucket = lam_max / num_buckets
+            errs: List[torch.Tensor] = []
+            for i in range(num_buckets):
+                m = (eigvals >= i * bucket) & (eigvals < (i + 1) * bucket)
+                if m.any():
+                    center = (i + 0.5) * bucket
+                    errs.append(torch.abs(eigvals[m].mean() - center))
+            return torch.stack(errs).max() if errs else torch.tensor(0.0)
+        except Exception:
+            return torch.tensor(0.0)
+
+
+# -----------------------------------------------------------------------------
+#  SYMPHONY++ complete model ---------------------------------------------------
+# -----------------------------------------------------------------------------
+
+
+class SymphonyPlusPlus(nn.Module):
+    def __init__(
+        self,
+        num_features: int,
+        num_classes: int,
+        hidden_dim: int = 256,
+        num_layers: int = 4,
+        K: int = 8,
+        dropout: float = 0.5,
+    ):
+        super().__init__()
+        self.melos = MeLOS(num_features, hidden_dim, num_classes, num_layers, K, dropout)
+        self.classifier = nn.Linear(num_classes, num_classes)
+        # scheduler predictors
+        hd = hidden_dim
+        self.latency_predictor = nn.Linear(hd, 1)
+        self.energy_predictor = nn.Linear(hd, 1)
+        self.privacy_predictor = nn.Linear(hd, 1)
+        # causal auditor
+        self.fairness_encoder = nn.Linear(num_classes, hd)
+        self.causal_gate = nn.Linear(hd, 1)
+
+    # ------------------------------------------------------------------
+    def forward(
+        self,
+        data: Data,
+        apply_shock_gate: bool = True,
+        compute_budgets: bool = False,
+    ) -> Dict[str, torch.Tensor]:
+        x = self.melos(data.x, data.edge_index, apply_shock_gate=apply_shock_gate)
+        logits = self.classifier(x)
+        out: Dict[str, torch.Tensor] = {"logits": logits}
+        if compute_budgets:
+            h = F.relu(self.fairness_encoder(x))
+            out.update(
+                latency=torch.sigmoid(self.latency_predictor(h)),
+                energy=torch.sigmoid(self.energy_predictor(h)),
+                privacy=torch.sigmoid(self.privacy_predictor(h)),
+                causal_influence=torch.sigmoid(self.causal_gate(h)),
+            )
+        return out
+
+
+# -----------------------------------------------------------------------------
+#  Training utilities ----------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+
+def _meta_inner_loop(
+    model: SymphonyPlusPlus,
+    support: Data,
+    inner_lr: float,
+    inner_steps: int,
+) -> SymphonyPlusPlus:
+    device = support.x.device
+    clone: SymphonyPlusPlus = type(model)(
+        support.x.size(1), support.y.max().item() + 1
+    ).to(device)
+    clone.load_state_dict(model.state_dict())
+    opt = torch.optim.SGD(clone.parameters(), lr=inner_lr)
+    for _ in range(inner_steps):
+        opt.zero_grad(set_to_none=True)
+        o = clone(support)
+        loss = F.cross_entropy(o["logits"][support.train_mask], support.y[support.train_mask])
+        loss = loss + 0.5 * clone.melos.compute_spectral_loss(
+            support.edge_index, support.num_nodes
+        )
+        loss.backward()
+        opt.step()
+    return clone
+
+
+def meta_train_step(
+    model: SymphonyPlusPlus,
+    support: Data,
+    query: Data,
+    inner_lr: float,
+    inner_steps: int = 5,
+) -> torch.Tensor:
+    adapted = _meta_inner_loop(model, support, inner_lr, inner_steps)
+    o = adapted(query)
+    return F.cross_entropy(o["logits"][query.train_mask], query.y[query.train_mask])
+
+
+def compute_causal_loss(outputs: Dict[str, torch.Tensor], data: Data) -> torch.Tensor:
+    if "causal_influence" not in outputs or not hasattr(data, "sensitive"):
+        return torch.tensor(0.0, device=outputs["logits"].device)
+    sensitive = data.sensitive == 1
+    return outputs["causal_influence"].squeeze()[sensitive].mean()
+
+
+# ------------------------------------------------------------------
+
+def train_symphony_plusplus(
+    model: SymphonyPlusPlus,
+    train_graphs: List[Data],
+    val_graphs: List[Data],
+    cfg: Dict,
+) -> SymphonyPlusPlus:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+
+    if cfg["meta_learning"]:
+        optim = torch.optim.Adam(model.parameters(), lr=cfg["meta_lr"])
+        for ep in range(cfg["epochs"]):
+            model.train()
+            total = 0.0
+            for _ in range(cfg["tasks_per_epoch"]):
+                idx = np.random.randint(len(train_graphs))
+                sup = train_graphs[idx].to(device)
+                qry = train_graphs[idx].to(device)
+                optim.zero_grad(set_to_none=True)
+                loss = meta_train_step(model, sup, qry, cfg["inner_lr"], cfg["inner_steps"])
+                loss.backward()
+                optim.step()
+                total += loss.item()
+            if ep % 10 == 0:
+                acc = evaluate_model(model, val_graphs, device)
+                print(f"[META]  ep={ep:03d}  loss={total/cfg['tasks_per_epoch']:.4f}  valAcc={acc:.4f}")
+    else:
+        optim = torch.optim.Adam(model.parameters(), lr=cfg["lr"])
+        for ep in range(cfg["epochs"]):
+            model.train()
+            for g in train_graphs:
+                g = g.to(device)
+                optim.zero_grad(set_to_none=True)
+                out = model(g, compute_budgets=True)
+                loss = F.cross_entropy(out["logits"][g.train_mask], g.y[g.train_mask])
+                loss = loss + cfg["spectral_weight"] * model.melos.compute_spectral_loss(
+                    g.edge_index, g.num_nodes
+                )
+                loss = loss + cfg["causal_weight"] * compute_causal_loss(out, g)
+                loss.backward()
+                optim.step()
+            if ep % 10 == 0:
+                acc = evaluate_model(model, val_graphs, device)
+                print(f"[STD ]  ep={ep:03d}  valAcc={acc:.4f}")
+    return model
+
+
+# ------------------------------------------------------------------
+
+def evaluate_model(model: nn.Module, graphs: List[Data], device: torch.device) -> float:
+    model.eval()
+    correct = tot = 0
+    with torch.no_grad():
+        for g in graphs:
+            g = g.to(device)
+            o = model(g)
+            pred = o["logits"].argmax(1)
+            m = g.test_mask if hasattr(g, "test_mask") else torch.ones(g.num_nodes, dtype=torch.bool)
+            correct += (pred[m] == g.y[m]).sum().item()
+            tot += m.sum().item()
+    return correct / tot if tot else 0.0
+
+
+# ------------------------------------------------------------------
+
+def save_model(model: SymphonyPlusPlus, file_path: str) -> None:
+    Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+    torch.save({"state": model.state_dict()}, file_path)
+
+
+def load_model(file_path: str, device: str | torch.device = "cpu") -> SymphonyPlusPlus:
+    ckpt = torch.load(file_path, map_location=device)
+    state = ckpt["state"]
+    num_feat = next(iter(state.values())).shape[1]  # crude but fine for reload
+    num_cls = state["classifier.weight"].shape[0]
+    model = SymphonyPlusPlus(num_feat, num_cls)
+    model.load_state_dict(state)
+    return model.to(device)

@@ -1,0 +1,102 @@
+import argparse
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+import torch
+import yaml
+
+from .train import SymphonyPlusPlus, save_model, train_symphony_plusplus
+from .evaluate import (
+    compute_adaptation_speed,
+    compute_spectral_metrics,
+    evaluate_minority_performance,
+    save_results,
+    plot_results,
+)
+from .preprocess import (
+    load_meta_test_graphs,
+    load_meta_train_graphs,
+    load_preprocessed,
+    save_preprocessed,
+)
+
+# ----------------------------------------------------------------------------
+#  Config loader --------------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+def _load_cfg(path: str):
+    with open(path, "r") as f:
+        return yaml.safe_load(f)
+
+
+# ----------------------------------------------------------------------------
+#  Experiment 1 ---------------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+def _experiment1(cfg, tr_graphs, te_graphs):
+    res = {"adaptation": {}, "spectral": {}, "minority": {}}
+    variants = {
+        "SYMPHONY++": {"meta_learning": True, "spectral_weight": 1.0},
+        "SYMPHONY": {"meta_learning": False, "spectral_weight": 0.1},
+    }
+    for name, vcfg in variants.items():
+        print(f"\nTraining {name} …")
+        m = SymphonyPlusPlus(
+            tr_graphs[0].x.size(1), int(tr_graphs[0].y.max()) + 1, cfg["hidden_dim"], cfg["num_layers"], cfg["chebyshev_K"], cfg["dropout"]
+        )
+        tc = cfg.copy(); tc.update(vcfg)
+        m = train_symphony_plusplus(m, tr_graphs, tr_graphs, tc)
+        save_model(m, f".research/iteration1/{name}.pt")
+        print("Evaluating …")
+        res["adaptation"][name] = compute_adaptation_speed(m, te_graphs[0], cfg)
+        res["spectral"][name] = compute_spectral_metrics(m, te_graphs, cfg["num_buckets"])
+        res["minority"][name] = evaluate_minority_performance(m, te_graphs)
+    return res
+
+
+# ----------------------------------------------------------------------------
+#  Main -----------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--smoke-test", action="store_true")
+    parser.add_argument("--full-experiment", action="store_true")
+    args = parser.parse_args()
+    if not (args.smoke_test ^ args.full_experiment):
+        print("Specify exactly one of --smoke-test or --full-experiment", file=sys.stderr)
+        sys.exit(1)
+    cfg_path = "config/smoke_test.yaml" if args.smoke_test else "config/full_experiment.yaml"
+    cfg = _load_cfg(cfg_path)
+
+    torch.manual_seed(cfg["seed"]); np.random.seed(cfg["seed"])
+
+    Path(".research/iteration1/images").mkdir(parents=True, exist_ok=True)
+    Path(".research/iteration1").mkdir(parents=True, exist_ok=True)
+
+    # data --------------------------------------------------------------------
+    if Path(".research/iteration1/train").exists():
+        tr_graphs = load_preprocessed(".research/iteration1/train")
+        te_graphs = load_preprocessed(".research/iteration1/test")
+    else:
+        tr_graphs = load_meta_train_graphs()
+        te_graphs = load_meta_test_graphs()
+        save_preprocessed(tr_graphs, ".research/iteration1/train")
+        save_preprocessed(te_graphs, ".research/iteration1/test")
+
+    # exp1 --------------------------------------------------------------------
+    if cfg.get("run_exp1", True):
+        res = _experiment1(cfg, tr_graphs, te_graphs)
+    else:
+        res = {}
+
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    out_json = f".research/iteration1/results_{cfg['name']}_{ts}.json"
+    save_results(res, out_json)
+    plot_results(res, ".research/iteration1/images")
+
+
+if __name__ == "__main__":
+    main()

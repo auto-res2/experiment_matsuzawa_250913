@@ -1,0 +1,119 @@
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+from typing import Dict, List
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn.functional as F
+from sklearn.metrics import f1_score
+
+from .train import SymphonyPlusPlus, evaluate_model
+
+# ----------------------------------------------------------------------------
+#  Adaptation speed -----------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+def _find_threshold_step(steps: List[int], values: List[float], thr: float) -> int:
+    for s, v in zip(steps, values):
+        if v >= thr:
+            return s
+    return steps[-1]
+
+
+def compute_adaptation_speed(model: SymphonyPlusPlus, graph, cfg: Dict) -> Dict:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    graph = graph.to(device)
+    base = model.to(device)
+    clone = type(model)(graph.x.size(1), graph.y.max().item() + 1).to(device)
+    clone.load_state_dict(base.state_dict())
+    opt = torch.optim.SGD(clone.parameters(), lr=cfg["inner_lr"])
+    steps, accs, times = [], [], []
+    tic = time.time()
+    for tgt in [1, 3, 5, 10, 20, 50]:
+        while len(steps) < tgt:
+            opt.zero_grad(set_to_none=True)
+            out = clone(graph)
+            loss = F.cross_entropy(out["logits"][graph.train_mask], graph.y[graph.train_mask])
+            loss.backward(); opt.step()
+            steps.append(len(steps) + 1)
+        clone.eval();
+        with torch.no_grad():
+            o = clone(graph)
+            m = graph.test_mask
+            acc = (o["logits"].argmax(1)[m] == graph.y[m]).float().mean().item()
+        accs.append(acc); times.append(time.time() - tic); clone.train()
+    return {
+        "steps": steps,
+        "accuracies": accs,
+        "times": times,
+        "steps_to_95": _find_threshold_step(steps, accs, 0.95 * max(accs)),
+    }
+
+# ----------------------------------------------------------------------------
+#  Spectral metrics -----------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+def compute_spectral_metrics(model: SymphonyPlusPlus, graphs, num_buckets: int) -> Dict:
+    errs = []
+    for g in graphs:
+        e = model.melos.compute_spectral_loss(g.edge_index, g.num_nodes, num_buckets)
+        errs.append(e.item())
+    return {"mean_worst_band_error": float(np.mean(errs)), "std_worst_band_error": float(np.std(errs))}
+
+
+# ----------------------------------------------------------------------------
+#  Minority performance -------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+def evaluate_minority_performance(model: SymphonyPlusPlus, graphs, thr: float = 0.03) -> Dict:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device).eval()
+    o_f1, m_f1 = [], []
+    for g in graphs:
+        g = g.to(device)
+        with torch.no_grad():
+            pred = model(g)["logits"].argmax(1).cpu().numpy()
+        y = g.y.cpu().numpy()
+        mask = g.test_mask.cpu().numpy() if hasattr(g, "test_mask") else np.ones_like(y, bool)
+        y, pred = y[mask], pred[mask]
+        o_f1.append(f1_score(y, pred, average="macro"))
+        # minority classes
+        cnt = np.bincount(y)
+        minority = np.where(cnt / cnt.sum() < thr)[0]
+        if len(minority):
+            idx = np.isin(y, minority)
+            m_f1.append(f1_score(y[idx], pred[idx], average="macro"))
+    return {
+        "overall_f1": float(np.mean(o_f1)),
+        "minority_f1": float(np.mean(m_f1) if m_f1 else 0.0),
+        "f1_gap": float(np.mean(o_f1) - np.mean(m_f1) if m_f1 else 0.0),
+    }
+
+
+# ----------------------------------------------------------------------------
+#  Helper utilities -----------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+def save_results(res: Dict, out_path: str):
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w") as f:
+        json.dump(res, f, indent=2)
+    print(json.dumps(res, indent=2))
+
+
+def plot_results(res: Dict, out_dir: str):
+    out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
+    plt.style.use("seaborn-v0_8-paper")
+    # Example: adaptation figure
+    if "adaptation" in res:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        for k, v in res["adaptation"].items():
+            ax.plot(v["steps"], v["accuracies"], label=k, marker="o")
+        ax.set_xlabel("Steps"); ax.set_ylabel("Accuracy"); ax.legend()
+        fig.tight_layout(); fig.savefig(out / "adaptation.pdf")
+        plt.close(fig)
+    print(f"Plots saved to {out_dir}")
