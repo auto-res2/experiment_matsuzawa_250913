@@ -6,5 +6,82 @@
     "over-smoothing residual connections",
     "GNN skip connections",
     "graph convolution over-smoothing"
+  ],
+  "research_study_list": [
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "A Kernel Perspective of Skip Connections in Convolutional Networks"
+    },
+    {
+      "title": "A Kernel Perspective of Skip Connections in Convolutional Networks"
+    },
+    {
+      "title": "Scaling Properties of Deep Residual Networks"
+    },
+    {
+      "title": "Deep Graph Neural Networks via Posteriori-Sampling-based Node-Adaptative Residual Module"
+    },
+    {
+      "title": "Benefits of Overparameterized Convolutional Residual Networks: Function Approximation under Smoothness Constraint"
+    },
+    {
+      "title": "Old can be Gold: Better Gradient Flow can Make Vanilla-GCNs Great Again"
+    },
+    {
+      "title": "Optimization of Graph Neural Networks: Implicit Acceleration by Skip Connections and More Depth"
+    },
+    {
+      "title": "Deep Graph Neural Networks via Posteriori-Sampling-based Node-Adaptative Residual Module"
+    },
+    {
+      "title": "DRew: Dynamically Rewired Message Passing with Delay"
+    },
+    {
+      "title": "Improving Breadth-Wise Backpropagation in Graph Neural Networks Helps Learning Long-Range Dependencies."
+    },
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "Analysis of Corrected Graph Convolutions"
+    },
+    {
+      "title": "Graph Neural Networks Do Not Always Oversmooth"
+    },
+    {
+      "title": "Demystifying Oversmoothing in Attention-Based Graph Neural Networks"
+    },
+    {
+      "title": "On Provable Benefits of Depth in Training Graph Convolutional Networks"
+    }
   ]
 }
