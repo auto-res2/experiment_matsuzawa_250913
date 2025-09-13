@@ -1,0 +1,78 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+Resolved 79 packages in 974ms
+Downloading timm (2.4MiB)
+Downloading nvidia-cufft-cu12 (184.2MiB)
+Downloading triton (148.3MiB)
+Downloading torchvision (8.2MiB)
+Downloading sympy (6.0MiB)
+Downloading nvidia-nvjitlink-cu12 (37.4MiB)
+Downloading pyarrow (40.8MiB)
+Downloading aiohttp (1.7MiB)
+ Downloading aiohttp
+ Downloading torchvision
+ Downloading timm
+ Downloading nvidia-nvjitlink-cu12
+ Downloading pyarrow
+ Downloading nvidia-cufft-cu12
+ Downloading triton
+ Downloading sympy
+Prepared 22 packages in 9.28s
+error: Failed to install: forecoast_cl-0.1.0-0.editable-py3-none-any.whl (forecoast-cl==0.1.0 (from file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913))
+  Caused by: failed to read directory `/home/toma/.cache/uv/archive-v0/rEvLH_Wuo8hPtqMW7ZF4s`: No such file or directory (os error 2)
+Downloading nvidia-cuda-cupti-cu12 (9.8MiB)
+Downloading setuptools (1.1MiB)
+Downloading nvidia-curand-cu12 (60.7MiB)
+Downloading nvidia-cudnn-cu12 (674.0MiB)
+Downloading nvidia-cufile-cu12 (1.1MiB)
+Downloading nvidia-cusolver-cu12 (255.1MiB)
+Downloading nvidia-cusparse-cu12 (274.9MiB)
+Downloading kiwisolver (1.4MiB)
+Downloading matplotlib (8.3MiB)
+Downloading nvidia-cublas-cu12 (566.8MiB)
+Downloading fonttools (4.7MiB)
+Downloading nvidia-cusparselt-cu12 (273.9MiB)
+Downloading numpy (16.2MiB)
+Downloading pillow (6.3MiB)
+Downloading torch (846.9MiB)
+Downloading hf-xet (3.0MiB)
+Downloading nvidia-nccl-cu12 (307.4MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (84.0MiB)
+Downloading pandas (11.8MiB)
+Downloading networkx (1.9MiB)
+ Downloading nvidia-cufile-cu12
+ Downloading kiwisolver
+ Downloading hf-xet
+ Downloading fonttools
+ Downloading pillow
+ Downloading setuptools
+ Downloading networkx
+ Downloading matplotlib
+ Downloading nvidia-cuda-cupti-cu12
+ Downloading numpy
+ Downloading nvidia-curand-cu12
+ Downloading pandas
+ Downloading nvidia-cuda-nvrtc-cu12
+ Downloading nvidia-cusolver-cu12
+ Downloading nvidia-cusparselt-cu12
+ Downloading nvidia-cusparse-cu12
+ Downloading nvidia-nccl-cu12
+ Downloading nvidia-cublas-cu12
+ Downloading nvidia-cudnn-cu12
+ Downloading torch
+Installed 54 packages in 4.73s
+Traceback (most recent call last):
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 23, in <module>
+    from .preprocess_py import DataPreprocessor  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'src.preprocess_py'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 39, in <module>
+    from train import train_experiment, create_resource_shock_trace  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'train'
