@@ -1,7 +1,8 @@
-# Full-scale configuration.  The values are still modest to comply with the
-# automated execution budget but significantly larger than the smoke version.
+# Full-scale configuration for iteration4.  The values are still modest to
+# comply with the automated execution budget but significantly larger than the
+# smoke version.
 
-output_dir: ".research/iteration3/outputs/full"
+output_dir: ".research/iteration4/outputs/full"
 
 pka:
   num_pieces: 16
@@ -28,10 +29,6 @@ training:
   learning_rate: 5e-5
   save_every: 5
   # Additional tweaks for longer runs can be added here
-
-# NOTE: Researchers should further customise this file for real experiments.
-# The current settings are chosen to fit within the execution limits of the
-# autograder while still demonstrating end-to-end functionality.
 
 # ---------------------------------------------------------------------------
 # End of config

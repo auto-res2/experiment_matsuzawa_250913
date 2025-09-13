@@ -1,4 +1,4 @@
-"""Unified entry-point for ORCHID-D4 experiments.
+"""Unified entry-point for ORCHID-D4 experiments (iteration4).
 
 Two flags are recognised:
 
@@ -8,7 +8,7 @@ Two flags are recognised:
 
 The script dispatches to `train.train_orchid` (defined in train.py) and, once
 training completes, copies the resulting `training_metrics.json` into the
-mandatory `.research/iteration3/` folder so that the grader can locate concrete
+mandatory `.research/iteration4/` folder so that the grader can locate concrete
 experimental results.  The copied JSON is also printed to *stdout* for
 verification.
 """
@@ -24,12 +24,12 @@ from typing import Any, Dict
 
 import yaml
 
-# Local import [31m[1m[4m–[0m train.py already contains heavy logic.  We purposefully delay
+# Local import – train.py already contains heavy logic.  We purposefully delay
 # the import so that lightweight operations (like `--help`) stay snappy.
 from train import train_orchid
 
 CONFIG_DIR = Path("config")
-ITERATION_DIR = Path(".research/iteration3")  # updated to iteration3
+ITERATION_DIR = Path(".research/iteration4")  # updated to iteration4
 ITERATION_DIR.mkdir(parents=True, exist_ok=True)
 
 

@@ -1,8 +1,8 @@
-# Lightweight configuration for CI / smoke-tests.
+# Lightweight configuration for CI / smoke-tests (iteration4).
 # Keep all tensor sizes and iteration counts small so that the run finishes in
 # <30 seconds on a single CPU core.
 
-output_dir: ".research/iteration3/outputs/smoke"
+output_dir: ".research/iteration4/outputs/smoke"
 
 pka:
   num_pieces: 4
