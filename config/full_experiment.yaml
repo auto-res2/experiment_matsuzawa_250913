@@ -1,0 +1,37 @@
+# config/full_experiment.yaml
+run_order: [experiment1, experiment2, experiment3]
+
+experiment1:
+  text_data:
+    tokenizer_name: "gpt2"
+    max_length: 512
+    batch_size: 16
+    datasets:
+      - {hf_name: "wmt22", subset: "en", split: "train", streaming: true}
+      - {hf_name: "who_guidelines_2024", subset: null, split: "train", streaming: false}
+      - {hf_name: "masakhaner_pdg_2024", subset: null, split: "train", streaming: true}
+  ct_data:
+    root: "~/data/BTCV"
+    batch_size: 4
+  training:
+    lr_text: 2e-4
+    max_steps_text: 200000
+    lr_ct: 1e-4
+    max_steps_ct: 120000
+  samplers:
+    default_steps: 18
+    hawq:
+      order: 4
+      laplace_mode: "rich_club"
+    cer: {}
+    dpmpp: {num_steps: 250}
+
+experiment2:
+  hawq: {num_inference_steps: 18, interval_bits: 10}
+  cer:  {num_inference_steps: 30}
+  steps: 100000
+
+experiment3:
+  rounds: 30
+  privacy_target: 2
+  eco_objectives: [latency, CO2, water, ewaste]

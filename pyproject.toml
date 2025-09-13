@@ -1,1 +1,17 @@
-# Please list the required python packages.
+[project]
+name = "hawq_raptor_experiments"
+version = "0.1.0"
+description = "Refactored HAWQ-RAPTOR experimental suite"
+readme = "README.md"
+requires-python = ">=3.9"
+
+dependencies = [
+  "torch>=1.13.0",
+  "transformers>=4.35.0",
+  "datasets>=2.14.0",
+  "monai>=1.2.0",
+  "diffusers>=0.24.0",
+  "matplotlib>=3.7.0",
+  "PyYAML>=5.4.0",
+  "requests>=2.31.0"
+]

@@ -1,0 +1,25 @@
+# config/smoke_test.yaml
+run_order: [experiment1, experiment2]
+
+experiment1:
+  text_data:
+    tokenizer_name: "gpt2"
+    max_length: 128
+    batch_size: 4
+    datasets:
+      - {hf_name: "wmt14", subset: "de-en", split: "train[:1%]", streaming: false}
+  ct_data:
+    root: "~/data/btcv_smoke"
+    batch_size: 1
+  training:
+    lr_text: 3e-4
+    max_steps_text: 3
+    lr_ct: 1e-4
+    max_steps_ct: 2
+  samplers:
+    default_steps: 4
+
+experiment2:
+  hawq: {num_inference_steps: 4}
+  cer:  {num_inference_steps: 4}
+  steps: 2000
