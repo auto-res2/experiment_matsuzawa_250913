@@ -1,0 +1,2 @@
+error: No `project` table found in: `/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/pyproject.toml`
+error: No `project` table found in: `/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/pyproject.toml`
