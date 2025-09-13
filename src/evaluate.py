@@ -1,114 +1,83 @@
 import json
-from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List
-
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
 import pandas as pd
-import seaborn as sns  # noqa: F401 (needed for seaborn-matplotlib style)
-import torch  # noqa: F401 (kept for future tensor-based metrics)
 
 __all__ = [
-    "evaluate_continual_learning",
+    "compute_statistics",
+    "perform_significance_test",
     "visualize_results",
     "generate_comparison_table",
     "save_results_json",
 ]
 
-# -----------------------------------------------------------------------------
-# Evaluation helpers
-# -----------------------------------------------------------------------------
 
-def evaluate_continual_learning(controller, test_loaders, cfg):
-    """Query *controller.evaluate* for each task-specific loader."""
-    res = {"task_accuracies": [], "forgetting_metrics": []}
-    for tid, loader in enumerate(test_loaders):
-        acc = controller.evaluate(loader)
-        res["task_accuracies"].append(acc)
-        if tid:
-            res["forgetting_metrics"].append(max(res["task_accuracies"][:-1]) - acc)
-    return res
+def compute_statistics(arr: List[float], conf: float = 0.95) -> Dict:
+    if not arr:
+        return {"mean": 0, "std": 0, "ci_lower": 0, "ci_upper": 0}
+    mean = float(np.mean(arr))
+    std = float(np.std(arr, ddof=1)) if len(arr) > 1 else 0.0
+    if len(arr) > 1:
+        lo, hi = stats.t.interval(conf, len(arr) - 1, loc=mean, scale=std / np.sqrt(len(arr)))
+    else:
+        lo = hi = mean
+    return {"mean": mean, "std": std, "ci_lower": float(lo), "ci_upper": float(hi)}
 
 
-# -----------------------------------------------------------------------------
-# Visualisation helpers – mandatory paths (iteration11)
-# -----------------------------------------------------------------------------
-_IMAGES_ROOT = Path(".research/iteration11/images")
+def perform_significance_test(a: List[float], b: List[float]) -> Dict:
+    if len(a) < 2 or len(b) < 2:
+        return {"t_statistic": 0.0, "p_value": 1.0, "significant": False}
+    t, p = stats.ttest_rel(a, b)
+    return {"t_statistic": float(t), "p_value": float(p), "significant": p < 0.05}
 
 
-def _ensure_dir(p: Path):
-    p.mkdir(parents=True, exist_ok=True)
-
-
-def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
-    """Plot task accuracies and save under `.research/iteration11/images/`."""
-    out = Path(save_dir)
-    _ensure_dir(out)
+def visualize_results(res: Dict, save_dir: Path):
+    save_dir.mkdir(parents=True, exist_ok=True)
     plt.style.use("seaborn-v0_8-paper")
-
-    if "task_accuracies" in results and results["task_accuracies"]:
-        t = np.arange(1, len(results["task_accuracies"]) + 1)
-        plt.figure(figsize=(6, 4))
-        plt.plot(t, results["task_accuracies"], marker="o")
-        plt.xlabel("Task")
-        plt.ylabel("Accuracy")
-        plt.ylim(0, 1)
-        plt.grid(alpha=0.3)
-        plt.tight_layout()
-        fname = out / "task_acc.pdf"
-        plt.savefig(fname, bbox_inches="tight", dpi=300)
-        plt.close()
-        print(f"✔ saved figure {fname}")
+    if "task_accuracies" in res and res["task_accuracies"]:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        t = np.arange(1, len(res["task_accuracies"]) + 1)
+        ax.plot(t, np.array(res["task_accuracies"]) * 100, "o-", lw=2)
+        ax.set_xlabel("Task")
+        ax.set_ylabel("Accuracy (%)")
+        ax.set_ylim(0, 105)
+        fig.tight_layout()
+        fig.savefig(save_dir / "task_accuracy.pdf", dpi=300)
+        plt.close(fig)
 
 
-# -----------------------------------------------------------------------------
-# Comparison table & JSON helpers
-# -----------------------------------------------------------------------------
-
-def generate_comparison_table(methods: Dict[str, Dict]):
+def generate_comparison_table(methods: Dict[str, Dict]) -> pd.DataFrame:
     rows = []
-    for name, stats in methods.items():
+    for name, s in methods.items():
         rows.append(
             {
                 "Method": name,
-                "Avg Acc": stats.get("avg_accuracy", 0) * 100,
-                "Worst Acc": stats.get("worst_accuracy", 0) * 100,
-                "Energy/Acc (mJ)": stats.get("avg_energy_per_correct", 0),
-                "SRAM Overshoots": stats.get("total_sram_overshoots", 0),
+                "Avg Acc (%)": f"{s.get('avg_accuracy', 0)*100:.1f}",
+                "Worst Acc (%)": f"{s.get('worst_accuracy', 0)*100:.1f}",
+                "Energy/Acc (mJ)": f"{s.get('avg_energy_per_correct', 0):.3f}",
+                "SRAM Overshoots": int(s.get("total_sram_overshoots", 0)),
             }
         )
-    df = pd.DataFrame(rows).round(2).sort_values("Avg Acc", ascending=False)
-    return df
+    return pd.DataFrame(rows)
 
 
-# -----------------------------------------------------------------------------
-# JSON serialisation
-# -----------------------------------------------------------------------------
+def save_results_json(obj: Dict, path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
 
-def _to_jsonable(obj):
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, (np.integer, np.floating)):
-        return float(obj)
-    if isinstance(obj, dict):
-        return {k: _to_jsonable(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_to_jsonable(i) for i in obj]
-    return obj
+    def _conv(o):
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        if isinstance(o, (np.integer, np.floating)):
+            return float(o)
+        if isinstance(o, dict):
+            return {k: _conv(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [_conv(v) for v in o]
+        return o
 
-
-def save_results_json(obj: Dict, path: str | Path):
-    p = Path(path)
-    _ensure_dir(p.parent)
-    with open(p, "w") as f:
-        json.dump(_to_jsonable(obj), f, indent=2)
-    print(f"✔ saved {p}")
-
-
-# -----------------------------------------------------------------------------
-# Expose under multiple import paths – avoids duplicating file in site-packages
-# -----------------------------------------------------------------------------
-import sys as _sys
-_sys.modules.setdefault("evaluate", _sys.modules[__name__])
-_sys.modules.setdefault("src.evaluate", _sys.modules[__name__])
+    with open(path, "w") as f:
+        json.dump(_conv(obj), f, indent=2)

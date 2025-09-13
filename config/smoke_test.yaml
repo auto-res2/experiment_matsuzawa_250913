@@ -1,11 +1,11 @@
 experiments:
   run_experiment_1: true
-  run_experiment_2: true
-  run_experiment_3: true
+  run_experiment_2: false
+  run_experiment_3: false
 
 forecoast:
   num_classes: 100
-  num_tasks: 5
+  num_tasks: 2
   epochs_per_task: 1
   batch_size: 32
   learning_rate: 0.002
