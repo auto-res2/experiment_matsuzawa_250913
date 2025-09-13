@@ -1,0 +1,36 @@
+experiment_name: otter_full_experiment
+mode: full
+
+data:
+  max_samples: 10000
+  validation_split: 0.1
+  test_split: 0.1
+
+evaluation:
+  batch_size: 32
+  delta_values: [1e-6, 1e-5, 1e-4]
+  energy_budgets: [0.4, 0.6, 0.8, 1.0, 1.2]
+  privacy_targets: [0.3, 0.6, 1.0, 2.0]
+  demographic_mixes: [0.5, 0.7, 0.9]
+
+training:
+  num_epochs: 10
+  batch_size: 32
+  learning_rate: 1e-4
+  warmup_steps: 1000
+  gradient_accumulation_steps: 4
+
+otter:
+  hutchinson_rank: 16
+  dropout_temp: 0.2
+  delta: 1e-6
+  horizon: 3
+  mpc_budget: 32
+  pool_rank: 2
+  entropy_threshold: 3.0
+  epsilon: 0.6
+
+resources:
+  num_workers: 4
+  pin_memory: true
+  max_memory_gb: 80

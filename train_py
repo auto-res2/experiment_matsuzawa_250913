@@ -1,0 +1,318 @@
+import os
+import json
+import time
+from pathlib import Path
+from typing import Optional, Dict, List, Tuple, Any
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.cuda.amp import autocast, GradScaler
+from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
+from dataclasses import dataclass, asdict
+import logging
+import warnings
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    AutoImageProcessor,
+    GPT2Tokenizer,
+    get_cosine_schedule_with_warmup,
+)
+
+warnings.filterwarnings("ignore")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+__all__ = [
+    "TrainingConfig",
+    "OTTERModel",
+    "MultiModalDataset",
+    "train",
+]
+
+
+@dataclass
+class TrainingConfig:
+    """Training configuration dataclass"""
+
+    # generic training
+    model_type: str = "otter"
+    batch_size: int = 32
+    learning_rate: float = 1e-4
+    num_epochs: int = 10
+    warmup_steps: int = 1_000
+    weight_decay: float = 0.01
+    gradient_accumulation_steps: int = 4
+    mixed_precision: bool = True
+    checkpoint_dir: str = "checkpoints"
+    log_interval: int = 100
+    eval_interval: int = 500
+    save_interval: int = 1_000
+    seed: int = 42
+
+    # OTTER specific
+    hutchinson_rank: int = 16
+    dropout_temp: float = 0.2
+    horizon: int = 3
+    mpc_budget: int = 32
+    pool_rank: int = 2
+    entropy_threshold: float = 3.0
+    delta: float = 1e-6
+    epsilon: float = 0.6
+
+    # device
+    device: str = "cuda"
+    num_workers: int = 4
+
+
+class OZKBoundModule(nn.Module):
+    """One-forward Zero-Knowledge Bounding"""
+
+    def __init__(self, dim: int, rank: int = 16, delta: float = 1e-6):
+        super().__init__()
+        self.dim = dim
+        self.rank = rank
+        self.delta = delta
+        self.register_buffer("violation_count", torch.zeros(1, dtype=torch.long))
+        self.register_buffer("total_count", torch.zeros(1, dtype=torch.long))
+
+    def forward(self, x: torch.Tensor, dropout_p: float = 0.2):
+        """Return x unchanged & Boolean violation flag"""
+        with torch.no_grad():
+            masks = (torch.rand_like(x) < dropout_p).float()
+            trace_est = 0.0
+            for i in range(self.rank):
+                v = masks if i == 0 else torch.randn_like(x)
+                jvp = (x + 1e-4 * v - x) / 1e-4
+                trace_est += (jvp * v).sum().item()
+            trace_est /= self.rank
+            variance_est = abs(trace_est) * 0.1
+            bound = trace_est + np.sqrt(2 * variance_est * np.log(1 / self.delta))
+            violation = bound > 1.0
+            self.violation_count += int(violation)
+            self.total_count += 1
+        return x, violation
+
+    def get_violation_rate(self) -> float:
+        if self.total_count == 0:
+            return 0.0
+        return (self.violation_count.float() / self.total_count.float()).item()
+
+
+class RecedingHorizonGate(nn.Module):
+    """Thermal-adaptive gating"""
+
+    def __init__(self, input_dim: int, horizon: int = 3, mpc_budget: int = 32):
+        super().__init__()
+        self.horizon = horizon
+        self.mpc_budget = mpc_budget
+        self.value_net = nn.Sequential(
+            nn.Linear(input_dim + 4, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1),
+        )
+        self.gate = nn.Parameter(torch.ones(input_dim))
+
+    def forward(self, x: torch.Tensor, thermal_state: torch.Tensor):
+        batch = x.shape[0]
+        state = torch.cat([x.mean(dim=1), thermal_state.unsqueeze(0).expand(batch, -1)], dim=-1)
+        with torch.no_grad():
+            val = self.value_net(state).sigmoid().mean()
+        return x * (self.gate * val)
+
+
+class TokenAdaptiveChannelPool(nn.Module):
+    """Entropy-aware pooling"""
+
+    def __init__(self, dim: int, pool_rank: int = 2, entropy_threshold: float = 3.0):
+        super().__init__()
+        self.entropy_threshold = entropy_threshold
+        self.surprisal_net = nn.Sequential(
+            nn.Linear(dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1),
+            nn.Softplus(),
+        )
+        self.pool_proj = nn.Linear(dim, pool_rank)
+        self.pool_exp = nn.Linear(pool_rank, dim)
+
+    def forward(self, x: torch.Tensor, *_):
+        with torch.no_grad():
+            entropy = self.surprisal_net(x).squeeze(-1) * np.log(2)
+        mask = entropy < self.entropy_threshold
+        if mask.any():
+            pooled = self.pool_proj(x[mask])
+            x[mask] = self.pool_exp(pooled)
+        return x
+
+
+class OTTERModel(nn.Module):
+    """Full OTTER model wrapper"""
+
+    def __init__(self, cfg: TrainingConfig):
+        super().__init__()
+        self.cfg = cfg
+        try:
+            self.base_model = AutoModelForCausalLM.from_pretrained(
+                "luodian/OTTER-MPT1B-RPJama-Init",
+                torch_dtype=torch.float16 if cfg.mixed_precision else torch.float32,
+                trust_remote_code=True,
+            )
+            self.hidden_dim = self.base_model.config.hidden_size
+            logger.info("Loaded OTTER backbone from HF")
+        except Exception as e:
+            logger.warning(f"Fallback small transformer due to load error: {e}")
+            self.hidden_dim = 768
+            self.base_model = self._fallback()
+        # components
+        self.ozk = OZKBoundModule(self.hidden_dim, cfg.hutchinson_rank, cfg.delta)
+        self.rhg = RecedingHorizonGate(self.hidden_dim, cfg.horizon, cfg.mpc_budget)
+        self.tacp = TokenAdaptiveChannelPool(self.hidden_dim, cfg.pool_rank, cfg.entropy_threshold)
+        self.register_buffer("thermal_state", torch.zeros(4))
+
+    def _fallback(self):
+        class _MiniT(nn.Module):
+            def __init__(self, d=768, layers=4):
+                super().__init__()
+                self.emb = nn.Embedding(50_000, d)
+                enc = nn.TransformerEncoderLayer(d, 12, 4 * d, batch_first=True)
+                self.enc = nn.TransformerEncoder(enc, layers)
+                self.out = nn.Linear(d, 50_000)
+
+            def forward(self, input_ids, **_):
+                x = self.enc(self.emb(input_ids))
+                return type("Out", (), {"logits": self.out(x), "loss": None, "hidden_states": x})()
+
+        return _MiniT()
+
+    def update_thermal_state(self, t: float, p: float, th: float, l: float):
+        self.thermal_state[:] = torch.tensor([t / 100, p / 10, th, l], device=self.thermal_state.device)
+
+    def forward(self, input_ids, attention_mask=None, labels=None, pixel_values=None):
+        out = self.base_model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+        h = out.hidden_states[-1] if getattr(out, "hidden_states", None) is not None else out.logits
+        h, viol = self.ozk(h, self.cfg.dropout_temp)
+        h = self.rhg(h, self.thermal_state)
+        h = self.tacp(h)
+        return {
+            "loss": out.loss if out.loss is not None else torch.tensor(0.0, device=h.device),
+            "logits": out.logits,
+            "hidden_states": h,
+            "violation": viol,
+            "violation_rate": self.ozk.get_violation_rate(),
+        }
+
+
+class MultiModalDataset(Dataset):
+    """Very light dataset wrapper (expects pre-processed json lines)"""
+
+    def __init__(self, data_dir: Path, tokenizer, image_processor=None, max_len: int = 512):
+        self.files = list(Path(data_dir).rglob("*.json"))
+        self.tokenizer = tokenizer
+        self.image_processor = image_processor
+        self.max_len = max_len
+        self.samples = self._load()
+
+    def _load(self):
+        items = []
+        for f in self.files[:1000]:
+            try:
+                with open(f) as fh:
+                    data = json.load(fh)
+                    items.extend(data if isinstance(data, list) else [data])
+            except Exception:
+                continue
+        if not items:
+            logger.warning("No dataset found – generating synthetic lines")
+            items = [{"text": f"synthetic {i}"} for i in range(200)]
+        return items
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        s = self.samples[idx]
+        enc = self.tokenizer(
+            s.get("text", ""),
+            truncation=True,
+            padding="max_length",
+            max_length=self.max_len,
+            return_tensors="pt",
+        )
+        return {
+            "input_ids": enc["input_ids"].squeeze(0),
+            "attention_mask": enc["attention_mask"].squeeze(0),
+            "labels": enc["input_ids"].squeeze(0),
+            "pixel_values": None,
+        }
+
+
+def train_epoch(model: OTTERModel, dl: DataLoader, opt, sch, scaler, cfg: TrainingConfig, ep: int):
+    model.train()
+    tot_loss, tot_v, tot_n = 0.0, 0, 0
+    pbar = tqdm(dl, desc=f"Epoch {ep}")
+    for i, batch in enumerate(pbar):
+        batch = {k: v.to(cfg.device) if v is not None else None for k, v in batch.items()}
+        # dummy thermal changes
+        model.update_thermal_state(35 + np.random.randn() * 5, 5 + np.random.randn(), np.random.rand() * 0.1, 0.5)
+        with autocast(enabled=cfg.mixed_precision):
+            out = model(**batch)
+            loss = out["loss"] / cfg.gradient_accumulation_steps
+        scaler.scale(loss).backward()
+        if (i + 1) % cfg.gradient_accumulation_steps == 0:
+            scaler.step(opt)
+            scaler.update()
+            opt.zero_grad()
+            sch.step()
+        tot_loss += out["loss"].item()
+        tot_v += int(out["violation"])
+        tot_n += batch["input_ids"].size(0)
+        if i % cfg.log_interval == 0:
+            pbar.set_postfix(loss=out["loss"].item(), v_rate=out["violation_rate"])
+    return {"loss": tot_loss / len(dl), "violation_rate": tot_v / max(tot_n, 1)}
+
+
+def train(cfg: TrainingConfig):
+    torch.manual_seed(cfg.seed)
+    np.random.seed(cfg.seed)
+    device = torch.device(cfg.device if torch.cuda.is_available() else "cpu")
+    cfg.device = str(device)
+
+    try:
+        tokenizer = AutoTokenizer.from_pretrained("luodian/OTTER-MPT1B-RPJama-Init")
+    except Exception:
+        tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    tokenizer.pad_token = tokenizer.eos_token
+
+    try:
+        img_proc = AutoImageProcessor.from_pretrained("openai/clip-vit-base-patch32")
+    except Exception:
+        img_proc = None
+
+    data_dir = Path("data/processed")
+    ds = MultiModalDataset(data_dir, tokenizer, img_proc)
+    dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=cfg.num_workers, pin_memory=True)
+
+    model = OTTERModel(cfg).to(device)
+    opt = torch.optim.AdamW(model.parameters(), lr=cfg.learning_rate, weight_decay=cfg.weight_decay)
+    sch = get_cosine_schedule_with_warmup(opt, cfg.warmup_steps, len(dl) * cfg.num_epochs)
+    scaler = GradScaler(enabled=cfg.mixed_precision)
+
+    ckpt_dir = Path(cfg.checkpoint_dir)
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    all_metrics = []
+    for ep in range(cfg.num_epochs):
+        m = train_epoch(model, dl, opt, sch, scaler, cfg, ep + 1)
+        logger.info(f"Epoch {ep+1} | loss={m['loss']:.4f} | v_rate={m['violation_rate']:.6f}")
+        all_metrics.append({"epoch": ep + 1, **m})
+        if (ep + 1) % 5 == 0:
+            torch.save(model.state_dict(), ckpt_dir / f"model_ep{ep+1}.pt")
+    torch.save(model.state_dict(), ckpt_dir / "final_model.pt")
+    with open(ckpt_dir / "training_results.json", "w") as fh:
+        json.dump(all_metrics, fh, indent=2)
+    return model, all_metrics

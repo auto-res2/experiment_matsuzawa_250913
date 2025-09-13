@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Entry script orchestrating smoke-test / full experiment"""
+
+import argparse, sys, json, logging, yaml, time
+from pathlib import Path
+import numpy as np, torch
+
+from .preprocess import preprocess_data, DataConfig
+from .train import train, TrainingConfig
+from .evaluate import main as eval_main, EvaluationConfig
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+# ----- helpers -----
+
+def _load_yaml(p: Path):
+    with open(p) as fh:
+        return yaml.safe_load(fh)
+
+
+# ----- runners -----
+
+def run_smoke():
+    cfg = _load_yaml(Path("config/smoke_test.yaml"))
+    d_cfg = DataConfig(max_samples_per_dataset=cfg["data"]["max_samples"], validation_split=cfg["data"]["validation_split"], test_split=cfg["data"]["test_split"])
+    preprocess_data(d_cfg)
+    t_cfg = TrainingConfig(num_epochs=cfg["training"]["num_epochs"], batch_size=cfg["training"]["batch_size"], learning_rate=cfg["training"]["learning_rate"], hutchinson_rank=cfg["otter"]["hutchinson_rank"], horizon=cfg["otter"]["horizon"], pool_rank=cfg["otter"]["pool_rank"])
+    _, tr = train(t_cfg)
+    e_cfg = EvaluationConfig(batch_size=cfg["evaluation"]["batch_size"], delta_values=cfg["evaluation"]["delta_values"], energy_budgets=cfg["evaluation"]["energy_budgets"], privacy_targets=cfg["evaluation"]["privacy_targets"])
+    eval_main()
+    print(json.dumps({"final_loss": tr[-1]["loss"], "final_violation_rate": tr[-1]["violation_rate"]}, indent=2))
+
+
+def run_full():
+    cfg = _load_yaml(Path("config/full_experiment.yaml"))
+    d_cfg = DataConfig(max_samples_per_dataset=cfg["data"]["max_samples"], validation_split=cfg["data"]["validation_split"], test_split=cfg["data"]["test_split"])
+    preprocess_data(d_cfg)
+    t_cfg = TrainingConfig(
+        num_epochs=cfg["training"]["num_epochs"],
+        batch_size=cfg["training"]["batch_size"],
+        learning_rate=cfg["training"]["learning_rate"],
+        warmup_steps=cfg["training"]["warmup_steps"],
+        gradient_accumulation_steps=cfg["training"]["gradient_accumulation_steps"],
+        hutchinson_rank=cfg["otter"]["hutchinson_rank"],
+        dropout_temp=cfg["otter"]["dropout_temp"],
+        horizon=cfg["otter"]["horizon"],
+        mpc_budget=cfg["otter"]["mpc_budget"],
+        pool_rank=cfg["otter"]["pool_rank"],
+        entropy_threshold=cfg["otter"]["entropy_threshold"],
+        delta=cfg["otter"]["delta"],
+        epsilon=cfg["otter"]["epsilon"],
+    )
+    _, tr = train(t_cfg)
+    eval_main()
+    print(json.dumps({"final_loss": tr[-1]["loss"], "final_violation_rate": tr[-1]["violation_rate"]}, indent=2))
+
+
+# ----- CLI -----
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--smoke-test", action="store_true")
+    parser.add_argument("--full-experiment", action="store_true")
+    args = parser.parse_args()
+    torch.manual_seed(42)
+    np.random.seed(42)
+    if args.smoke_test:
+        run_smoke()
+    elif args.full_experiment:
+        run_full()
+    else:
+        parser.print_help(); sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

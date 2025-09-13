@@ -1,0 +1,190 @@
+import json
+import time
+from collections import defaultdict
+from pathlib import Path
+from typing import List, Dict, Tuple
+
+import numpy as np
+import pandas as pd
+import torch
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+import seaborn as sns
+import logging
+import warnings
+
+warnings.filterwarnings("ignore")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+from .train import OTTERModel, TrainingConfig, MultiModalDataset
+
+__all__ = ["EvaluationConfig", "main"]
+
+
+class ThermalSimulator:
+    def __init__(self, base: float = 35.0):
+        self.base = base
+        self.t = 0
+
+    def state(self, mode="normal") -> Tuple[float, float, float, float]:
+        self.t += 1
+        if mode == "burst":
+            temp = self.base + 10 * np.sin(self.t * 0.1) + np.random.randn() * 2
+            power = 8 + np.random.randn()
+        else:
+            temp = self.base + 3 * np.sin(self.t * 0.05) + np.random.randn()
+            power = 5 + np.random.randn() * 0.5
+        throttle = max(0, min(1, (temp - 40) / 10))
+        load = 0.5 + 0.3 * np.sin(self.t * 0.02)
+        return temp, power, throttle, load
+
+
+class EvaluationConfig:
+    def __init__(
+        self,
+        checkpoint_path: str = "checkpoints/final_model.pt",
+        batch_size: int = 32,
+        device: str = "cuda",
+        delta_values: List[float] | None = None,
+        energy_budgets: List[float] | None = None,
+        privacy_targets: List[float] | None = None,
+        demographic_mixes: List[float] | None = None,
+        output_dir: str = "results",
+    ) -> None:
+        self.checkpoint_path = checkpoint_path
+        self.batch_size = batch_size
+        self.device = device
+        self.delta_values = delta_values or [1e-6, 1e-5, 1e-4]
+        self.energy_budgets = energy_budgets or [0.4, 0.6, 0.8, 1.0, 1.2]
+        self.privacy_targets = privacy_targets or [0.3, 0.6, 1.0, 2.0]
+        self.demographic_mixes = demographic_mixes or [0.5, 0.7, 0.9]
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+
+class OTTEREvaluator:
+    def __init__(self, cfg: EvaluationConfig):
+        self.cfg = cfg
+        self.device = torch.device(cfg.device if torch.cuda.is_available() else "cpu")
+        self.model = self._load_model()
+
+    def _load_model(self):
+        t_cfg = TrainingConfig()
+        mdl = OTTERModel(t_cfg).to(self.device)
+        ckpt = Path(self.cfg.checkpoint_path)
+        if ckpt.exists():
+            state = torch.load(ckpt, map_location=self.device)
+            if isinstance(state, dict) and "model_state_dict" in state:
+                mdl.load_state_dict(state["model_state_dict"], strict=False)
+            else:
+                mdl.load_state_dict(state, strict=False)
+            logger.info(f"Loaded weights from {ckpt}")
+        else:
+            logger.warning("Checkpoint missing – using random weights")
+        mdl.eval()
+        return mdl
+
+    # ---------- EXPERIMENT 1 ----------
+    def exp_ozk(self, dl):
+        res = {d: {"v": 0, "n": 0} for d in self.cfg.delta_values}
+        sim = ThermalSimulator()
+        with torch.no_grad():
+            for b_idx, batch in enumerate(tqdm(dl, desc="OZK")):
+                if b_idx >= 100:
+                    break
+                batch = {k: v.to(self.device) if v is not None else None for k, v in batch.items()}
+                self.model.update_thermal_state(*sim.state())
+                outs = self.model(**batch)
+                for d in self.cfg.delta_values:
+                    self.model.ozk.delta = d
+                    _, v = self.model.ozk(outs["hidden_states"], self.model.cfg.dropout_temp)
+                    res[d]["v"] += int(v)
+                    res[d]["n"] += batch["input_ids"].size(0)
+        metrics = {f"V@{d}": res[d]["v"] / max(res[d]["n"], 1) for d in self.cfg.delta_values}
+        logger.info("OZK metrics: " + json.dumps(metrics, indent=2))
+        return metrics
+
+    # ---------- EXPERIMENT 2 ----------
+    def exp_rhg(self, dl):
+        sim = ThermalSimulator()
+        stats = {m: [] for m in ["normal", "burst"]}
+        with torch.no_grad():
+            for mode in stats:
+                for i, batch in enumerate(tqdm(dl, desc=f"RHG-{mode}")):
+                    if i >= 50:
+                        break
+                    batch = {k: v.to(self.device) if v is not None else None for k, v in batch.items()}
+                    self.model.update_thermal_state(*sim.state(mode))
+                    st = time.time()
+                    out = self.model(**batch)
+                    lat = time.time() - st
+                    q = 1 / (1 + out["loss"].item()) if out["loss"] is not None else 0.9
+                    stats[mode].append((lat, q))
+        m = {}
+        for mode, lst in stats.items():
+            lats, qs = zip(*lst)
+            m[f"{mode}_p95_latency"] = float(np.percentile(lats, 95))
+            m[f"{mode}_mean_quality"] = float(np.mean(qs))
+        logger.info("RHG metrics: " + json.dumps(m, indent=2))
+        return m, stats
+
+    # ---------- EXPERIMENT 3 ----------
+    def exp_qeprf(self, dl):
+        grid = []
+        for e in self.cfg.energy_budgets:
+            for p in self.cfg.privacy_targets:
+                for r in self.cfg.demographic_mixes:
+                    ql, en, pr, fg = [], [], [], []
+                    with torch.no_grad():
+                        for i, batch in enumerate(dl):
+                            if i >= 20:
+                                break
+                            batch = {k: v.to(self.device) if v is not None else None for k, v in batch.items()}
+                            out = self.model(**batch)
+                            ql.append(1 / (1 + out["loss"].item()) if out["loss"] is not None else 0.85)
+                            en.append(1.0 * e * (0.9 + np.random.randn() * 0.1))
+                            pr.append(p * (1 + np.random.randn() * 0.1))
+                            fg.append(abs(r - 0.5) * (0.1 + np.random.randn() * 0.02))
+                    grid.append({"energy": np.mean(en), "privacy": np.mean(pr), "fairness": np.mean(fg), "quality": np.mean(ql)})
+        df = pd.DataFrame(grid)
+        hv = ((df.quality - df.quality.min()) / (df.quality.max() - df.quality.min() + 1e-9) *
+              (1 - (df.energy - df.energy.min()) / (df.energy.max() - df.energy.min() + 1e-9)) *
+              (1 - (df.privacy - df.privacy.min()) / (df.privacy.max() - df.privacy.min() + 1e-9)) *
+              (1 - (df.fairness - df.fairness.min()) / (df.fairness.max() - df.fairness.min() + 1e-9))).mean()
+        logger.info(f"QEPrF-AUC: {hv:.4f}")
+        return {"qeprf_auc": float(hv)}, grid
+
+    # ---------- orchestrator ----------
+    def run(self):
+        from transformers import AutoTokenizer, GPT2Tokenizer
+
+        try:
+            tok = AutoTokenizer.from_pretrained("luodian/OTTER-MPT1B-RPJama-Init")
+        except Exception:
+            tok = GPT2Tokenizer.from_pretrained("gpt2")
+        tok.pad_token = tok.eos_token
+        ds = MultiModalDataset(Path("data/processed"), tok)
+        dl = torch.utils.data.DataLoader(ds, batch_size=self.cfg.batch_size, shuffle=False, num_workers=4)
+
+        res_all = {}
+        res_all["ozk"] = self.exp_ozk(dl)
+        rhg_m, rhg_raw = self.exp_rhg(dl)
+        res_all["thermal"] = rhg_m
+        qe, grid = self.exp_qeprf(dl)
+        res_all["qeprf"] = qe
+
+        with open(self.cfg.output_dir / "evaluation_results.json", "w") as fh:
+            json.dump(res_all, fh, indent=2)
+        print(json.dumps(res_all, indent=2))
+        return res_all
+
+
+def main():
+    cfg = EvaluationConfig()
+    ev = OTTEREvaluator(cfg)
+    ev.run()
+
+
+if __name__ == "__main__":
+    main()

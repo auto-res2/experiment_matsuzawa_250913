@@ -1,0 +1,30 @@
+experiment_name: otter_smoke_test
+mode: smoke_test
+
+data:
+  max_samples: 100
+  validation_split: 0.1
+  test_split: 0.1
+
+evaluation:
+  batch_size: 16
+  delta_values: [1e-6, 1e-5]
+  energy_budgets: [0.6, 1.0]
+  privacy_targets: [0.6, 1.0]
+
+training:
+  num_epochs: 2
+  batch_size: 8
+  learning_rate: 1e-4
+  warmup_steps: 10
+  gradient_accumulation_steps: 1
+
+otter:
+  hutchinson_rank: 8
+  dropout_temp: 0.2
+  delta: 1e-6
+  horizon: 2
+  mpc_budget: 16
+  pool_rank: 2
+  entropy_threshold: 3.0
+  epsilon: 0.6

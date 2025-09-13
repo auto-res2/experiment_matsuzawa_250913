@@ -1,0 +1,125 @@
+import json
+import zipfile, tarfile, requests, shutil
+from pathlib import Path
+from typing import Dict, List, Any
+import numpy as np
+import pandas as pd
+import logging, warnings
+from tqdm import tqdm
+
+warnings.filterwarnings("ignore")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+__all__ = ["DataConfig", "preprocess_data"]
+
+
+class DataConfig:
+    def __init__(
+        self,
+        data_dir: str = "data",
+        max_samples_per_dataset: int = 10_000,
+        validation_split: float = 0.1,
+        test_split: float = 0.1,
+        seed: int = 42,
+    ) -> None:
+        self.data_dir = Path(data_dir)
+        self.raw_dir = self.data_dir / "raw"
+        self.proc_dir = self.data_dir / "processed"
+        self.max_samples = max_samples_per_dataset
+        self.val_split = validation_split
+        self.test_split = test_split
+        self.seed = seed
+        self.datasets: Dict[str, str] = {
+            "wikitext": "https://huggingface.co/datasets/wikitext/resolve/main/wikitext-103-v1.zip",
+        }
+        for d in [self.raw_dir, self.proc_dir]:
+            d.mkdir(parents=True, exist_ok=True)
+
+
+# ---------- util ----------
+
+def _download(url: str, tgt: Path):
+    if tgt.exists():
+        return True
+    try:
+        r = requests.get(url, stream=True, timeout=30)
+        r.raise_for_status()
+        with open(tgt, "wb") as fh, tqdm(total=int(r.headers.get("content-length", 0)), unit="B", unit_scale=True) as p:
+            for chunk in r.iter_content(8192):
+                fh.write(chunk)
+                p.update(len(chunk))
+        return True
+    except Exception as e:
+        logger.error(f"Download failed {url}: {e}")
+        return False
+
+
+def _extract(arc: Path, dst: Path):
+    try:
+        if arc.suffix == ".zip":
+            with zipfile.ZipFile(arc) as z:
+                z.extractall(dst)
+        else:
+            with tarfile.open(arc) as t:
+                t.extractall(dst)
+        return True
+    except Exception as e:
+        logger.error(f"Extract failed {arc}: {e}")
+        return False
+
+
+# ---------- main pipeline ----------
+
+def preprocess_data(cfg: DataConfig):
+    np.random.seed(cfg.seed)
+    meta = {}
+    # download & extract
+    for name, url in cfg.datasets.items():
+        dst_dir = cfg.raw_dir / name
+        if not dst_dir.exists():
+            arc = cfg.raw_dir / url.split("/")[-1]
+            if _download(url, arc):
+                _extract(arc, dst_dir)
+                arc.unlink(missing_ok=True)
+        meta[name] = {
+            "path": str(dst_dir),
+            "status": "ok" if dst_dir.exists() else "missing",
+        }
+    # simplistic text extraction
+    samples = []
+    for txt in (cfg.raw_dir).rglob("*.txt"):
+        try:
+            with open(txt, encoding="utf-8") as fh:
+                for ln in fh:
+                    ln = ln.strip()
+                    if len(ln) > 50:
+                        samples.append({"text": ln})
+                        if len(samples) >= cfg.max_samples:
+                            break
+        except Exception:
+            continue
+        if len(samples) >= cfg.max_samples:
+            break
+    if not samples:
+        samples = [{"text": f"synthetic {i}"} for i in range(cfg.max_samples)]
+    np.random.shuffle(samples)
+    n = len(samples)
+    n_val, n_test = int(n * cfg.val_split), int(n * cfg.test_split)
+    splits = {
+        "train": samples[: n - n_val - n_test],
+        "val": samples[n - n_val - n_test : n - n_test],
+        "test": samples[n - n_test :],
+    }
+    for split, data in splits.items():
+        p = cfg.proc_dir / f"{split}.json"
+        with open(p, "w") as fh:
+            json.dump(data, fh)
+    with open(cfg.proc_dir / "metadata.json", "w") as fh:
+        json.dump({"counts": {k: len(v) for k, v in splits.items()}}, fh, indent=2)
+    logger.info(f"Pre-processing finished – {n} samples")
+    return splits
+
+
+if __name__ == "__main__":
+    preprocess_data(DataConfig())
