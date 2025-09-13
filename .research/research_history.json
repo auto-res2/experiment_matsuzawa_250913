@@ -6,5 +6,82 @@
     "diffusion model step skipping",
     "diffusion sampling efficiency",
     "discrete diffusion speedup"
+  ],
+  "research_study_list": [
+    {
+      "title": "Faster Diffusion: Rethinking the Role of the Encoder for Diffusion Model Inference"
+    },
+    {
+      "title": "Post-Training Quantization on Diffusion Models"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Leveraging Early-Stage Robustness in Diffusion Models for Efficient and High-Quality Image Synthesis"
+    },
+    {
+      "title": "DeepCache: Accelerating Diffusion Models for Free"
+    },
+    {
+      "title": "Fast Sampling of Diffusion Models with Exponential Integrator"
+    },
+    {
+      "title": "A Continuous Time Framework for Discrete Denoising Models"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "The Poisson Midpoint Method for Langevin Dynamics:  Provably Efficient Discretization for Diffusion Models"
+    },
+    {
+      "title": "Denoising Diffusion Samplers"
+    },
+    {
+      "title": "Training-Free Adaptive Diffusion with Bounded Difference Approximation Strategy"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "The Surprising Effectiveness of Skip-Tuning in Diffusion Sampling"
+    },
+    {
+      "title": "Efficient Denoising Diffusion via Probabilistic Masking"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Improved off-policy training of diffusion samplers"
+    },
+    {
+      "title": "Denoising Diffusion Samplers"
+    },
+    {
+      "title": "Nearly $d$-Linear Convergence Bounds for Diffusion Models via Stochastic Localization"
+    },
+    {
+      "title": "Minimax Optimality of Score-based Diffusion Models: Beyond the Density Lower Bound Assumptions"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Wavelet Diffusion Models Are Fast and Scalable Image Generators"
+    },
+    {
+      "title": "Leveraging Early-Stage Robustness in Diffusion Models for Efficient and High-Quality Image Synthesis"
+    },
+    {
+      "title": "Faster Diffusion: Rethinking the Role of the Encoder for Diffusion Model Inference"
+    }
   ]
 }
