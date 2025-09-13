@@ -30,56 +30,69 @@ except ImportError:
     # -------------------------------------------------------------------------
     # Fallback strategy: import from loose files sitting at the repo root.
     # -------------------------------------------------------------------------
-    # ---- train ----------------------------------------------------------------
+    # ---- helper to load a module from an arbitrary path ----------------------
+    def _load_from_path(mod_name: str, path: Path):
+        spec = importlib.util.spec_from_file_location(mod_name, path)
+        assert spec and spec.loader, f"Could not create spec for {path}"
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)  # type: ignore[arg-type]
+        sys.modules[mod_name] = module
+        return module
+
+    # ---- train ---------------------------------------------------------------
     try:
         from train import train_experiment, create_resource_shock_trace  # type: ignore
     except ImportError:
-        _train_candidates = [_pkg_root / "train_py.py", _repo_root / "train_py.py"]
+        _train_candidates = [
+            _pkg_root / "train_py.py",
+            _pkg_root / "train_py",
+            _repo_root / "train_py.py",
+            _repo_root / "train_py",
+        ]
         for _cand in _train_candidates:
             if _cand.exists():
-                spec = importlib.util.spec_from_file_location("train", _cand)
-                assert spec and spec.loader, f"Could not create spec for {_cand}"
-                _mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(_mod)  # type: ignore[arg-type]
-                sys.modules["train"] = _mod
+                _mod = _load_from_path("train", _cand)
                 train_experiment = _mod.train_experiment  # type: ignore
                 create_resource_shock_trace = _mod.create_resource_shock_trace  # type: ignore
                 break
         else:
             raise
-    # ---- evaluate -------------------------------------------------------------
+    # ---- evaluate ------------------------------------------------------------
     try:
-        from evaluate import generate_comparison_table, visualize_results, save_results_json  # type: ignore
+        from evaluate import (
+            generate_comparison_table,
+            visualize_results,
+            save_results_json,
+        )  # type: ignore
     except ImportError:
-        _eval_candidates = [_pkg_root / "evaluate_py.py", _repo_root / "evaluate_py.py"]
+        _eval_candidates = [
+            _pkg_root / "evaluate_py.py",
+            _pkg_root / "evaluate_py",
+            _repo_root / "evaluate_py.py",
+            _repo_root / "evaluate_py",
+        ]
         for _cand in _eval_candidates:
             if _cand.exists():
-                spec = importlib.util.spec_from_file_location("evaluate", _cand)
-                assert spec and spec.loader, f"Could not create spec for {_cand}"
-                _mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(_mod)  # type: ignore[arg-type]
-                sys.modules["evaluate"] = _mod
+                _mod = _load_from_path("evaluate", _cand)
                 generate_comparison_table = _mod.generate_comparison_table  # type: ignore
                 visualize_results = _mod.visualize_results  # type: ignore
                 save_results_json = _mod.save_results_json  # type: ignore
                 break
         else:
             raise
-    # ---- preprocess -----------------------------------------------------------
+    # ---- preprocess ----------------------------------------------------------
     try:
         from preprocess_py import DataPreprocessor  # type: ignore
     except ImportError:
-        _preprocess_path_candidates = [
+        _pp_candidates = [
             _pkg_root / "preprocess_py.py",
+            _pkg_root / "preprocess_py",
             _repo_root / "preprocess_py.py",
+            _repo_root / "preprocess_py",
         ]
-        for _cand in _preprocess_path_candidates:
+        for _cand in _pp_candidates:
             if _cand.exists():
-                spec = importlib.util.spec_from_file_location("preprocess_py", _cand)
-                assert spec and spec.loader, f"Could not create spec for {_cand}"
-                _mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(_mod)  # type: ignore[arg-type]
-                sys.modules["preprocess_py"] = _mod
+                _mod = _load_from_path("preprocess_py", _cand)
                 DataPreprocessor = _mod.DataPreprocessor  # type: ignore
                 break
         else:
@@ -89,14 +102,14 @@ except ImportError:
             )
 
 # -----------------------------------------------------------------------------
-# Paths (updated to iteration6 as mandated) ------------------------------------
+# Paths (updated to iteration7 as mandated) ------------------------------------
 CFG_DIR = _repo_root / "config"
-JSON_ROOT = Path(".research/iteration6")
-IMG_ROOT = Path(".research/iteration6/images")
+JSON_ROOT = Path(".research/iteration7")
+IMG_ROOT = Path(".research/iteration7/images")
 
 
 def _load_cfg(name: str):
-    """Robust YAML loader."""
+    """Robust YAML loader that searches `config/` first, then repo root."""
     candidates = [CFG_DIR / name, _repo_root / name]
     for p in candidates:
         if p.exists():

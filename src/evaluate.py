@@ -6,8 +6,8 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
-import torch
+import seaborn as sns  # noqa: F401  (needed for seaborn-matplotlib style)
+import torch  # noqa: F401  (kept for future tensor-based metrics)
 
 __all__ = [
     "evaluate_continual_learning",
@@ -21,20 +21,19 @@ __all__ = [
 # -----------------------------------------------------------------------------
 
 def evaluate_continual_learning(controller, test_loaders, cfg):
+    """Simple helper that queries *controller.evaluate* for each task loader."""
     res = {"task_accuracies": [], "forgetting_metrics": []}
     for tid, loader in enumerate(test_loaders):
         acc = controller.evaluate(loader)
         res["task_accuracies"].append(acc)
         if tid:
-            res["forgetting_metrics"].append(
-                max(res["task_accuracies"][:-1]) - acc
-            )
+            res["forgetting_metrics"].append(max(res["task_accuracies"][:-1]) - acc)
     return res
 
 
 # -----------------------------------------------------------------------------
-# Visualisation helpers (paths updated to iteration6) --------------------------
-_IMAGES_ROOT = Path(".research/iteration6/images")
+# Visualisation helpers  (paths updated to iteration7 as per spec) --------------
+_IMAGES_ROOT = Path(".research/iteration7/images")
 
 
 def _ensure_dir(p: Path):
@@ -43,23 +42,21 @@ def _ensure_dir(p: Path):
 
 
 def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
-    """Plot task accuracies and save the figure under `.research/iteration6/images/`.
+    """Plot task accuracies and save the figure under `.research/iteration7/images/`.
 
     Parameters
     ----------
     results : Dict
-        Dictionary that must contain a key `task_accuracies` mapping to a list
-        of per-task accuracies.
+        Must contain key `task_accuracies` that maps to a list of floats ∈ [0,1].
     save_dir : str | Path, optional
-        Directory in which to save the figure.  Defaults to the global
-        `_IMAGES_ROOT` so that all experiments are stored in the mandated
-        location.
+        Directory in which to save the figure.  Defaults to `_IMAGES_ROOT` so that
+        all experiments end up in the mandated location.
     """
     out = Path(save_dir)
     _ensure_dir(out)
     plt.style.use("seaborn-v0_8-paper")
 
-    if "task_accuracies" in results:
+    if "task_accuracies" in results and results["task_accuracies"]:
         t = np.arange(1, len(results["task_accuracies"]) + 1)
         plt.figure(figsize=(6, 4))
         plt.plot(t, results["task_accuracies"], marker="o")
@@ -79,6 +76,7 @@ def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
 # -----------------------------------------------------------------------------
 
 def generate_comparison_table(methods: Dict[str, Dict]):
+    """Return a pretty *pandas* table comparing several methods."""
     rows = []
     for name, stats in methods.items():
         rows.append(
@@ -97,6 +95,7 @@ def generate_comparison_table(methods: Dict[str, Dict]):
 # ----- JSON serialisation -----------------------------------------------------
 
 def _to_jsonable(obj):
+    """Recursively convert *obj* so that *json.dump* accepts it."""
     if isinstance(obj, np.ndarray):
         return obj.tolist()
     if isinstance(obj, (np.integer, np.floating)):
@@ -109,6 +108,7 @@ def _to_jsonable(obj):
 
 
 def save_results_json(obj: Dict, path: str | Path):
+    """Save *obj* to *path* in JSON format (parent directories auto-created)."""
     p = Path(path)
     _ensure_dir(p.parent)
     with open(p, "w") as f:
@@ -117,7 +117,8 @@ def save_results_json(obj: Dict, path: str | Path):
 
 
 # -----------------------------------------------------------------------------
-# Make discoverable as top-level as well as inside `src` ------------------------
+# Make discoverable under multiple import paths (`import evaluate` and
+# `import src.evaluate` both succeed without copying files).
 # -----------------------------------------------------------------------------
 import sys as _sys
 _sys.modules.setdefault("evaluate", _sys.modules[__name__])
