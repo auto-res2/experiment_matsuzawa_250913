@@ -68,9 +68,9 @@ def run_exp1(cfg: dict, results_root: Path, device: str = "cpu"):
     """Single-node proxy for fleet-scale adaptation & scheduling study."""
 
     # ------------------------------------------------------------------
-    # directory layout
-    images_dir = results_root / "images"
-    json_dir = results_root
+    # directory layout – always honour mandatory paths
+    images_dir = Path(".research/iteration2/images")
+    json_dir = Path(".research/iteration2")
     images_dir.mkdir(parents=True, exist_ok=True)
     json_dir.mkdir(parents=True, exist_ok=True)
 
@@ -89,7 +89,9 @@ def run_exp1(cfg: dict, results_root: Path, device: str = "cpu"):
     )
 
     ceml = CEMLGRU(in_dim=10).to(device)
-    optim = Adam(ceml.parameters(), lr=exp_cfg["ceml"]["lr"])
+    # Ensure learning-rate is a float (YAML may serialise scientific notation as string)
+    lr_value = float(exp_cfg["ceml"]["lr"])
+    optim = Adam(ceml.parameters(), lr=lr_value)
     scheduler = RTPS(
         window_ms=exp_cfg["rtps"]["window"],
         kick_threshold=exp_cfg["rtps"]["kick_threshold"],
@@ -135,7 +137,7 @@ def run_exp1(cfg: dict, results_root: Path, device: str = "cpu"):
     results = {
         "description": "Experiment-1 – Fleet-Scale Adaptation (smoke/full)",
         "loss_curve": epoch_metrics,
-        "figures": [str(loss_fig.relative_to(results_root))],
+        "figures": [str(loss_fig.relative_to(json_dir))],
     }
 
     json_path = json_dir / "exp1_results.json"

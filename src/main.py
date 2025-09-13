@@ -1,5 +1,4 @@
 import argparse
-import os
 import sys
 from pathlib import Path
 from typing import Dict
@@ -13,7 +12,7 @@ import src.train as _train  # absolute import avoids relative-import issues
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent  # project root
 CFG_DIR = ROOT / "config"
-RESULTS_DIR = ROOT / ".research" / "iteration1"
+RESULTS_DIR = ROOT / ".research" / "iteration2"  # updated to mandatory path
 
 
 def load_yaml(path: Path) -> Dict:
