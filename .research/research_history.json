@@ -6,5 +6,82 @@
     "PairNorm oversmoothing",
     "GNN residual connections",
     "layer normalization GNN"
+  ],
+  "research_study_list": [
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "DropEdge: Towards Deep Graph Convolutional Networks on Node Classification"
+    },
+    {
+      "title": "DropGNN: Random Dropouts Increase the Expressiveness of Graph Neural Networks"
+    },
+    {
+      "title": "DropGNN: Random Dropouts Increase the Expressiveness of Graph Neural Networks"
+    },
+    {
+      "title": "GNNDelete: A General Strategy for Unlearning in Graph Neural Networks"
+    },
+    {
+      "title": "Interpreting Graph Neural Networks for NLP With Differentiable Edge Masking"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "ContraNorm: A Contrastive Learning Perspective on Oversmoothing and Beyond"
+    },
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "Not too little, not too much: a theoretical analysis of graph (over)smoothing"
+    },
+    {
+      "title": "Graph Neural Networks with Adaptive Residual"
+    },
+    {
+      "title": "Deep Graph Neural Networks via Posteriori-Sampling-based Node-Adaptative Residual Module"
+    },
+    {
+      "title": "Simple and Deep Graph Convolutional Networks"
+    },
+    {
+      "title": "Scattering GCN: Overcoming Oversmoothness in Graph Convolutional Networks"
+    },
+    {
+      "title": "Riemannian Residual Neural Networks"
+    },
+    {
+      "title": "GraphNorm: A Principled Approach to Accelerating Graph Neural Network Training"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "GRANOLA: Adaptive Normalization for Graph Neural Networks"
+    },
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "ContraNorm: A Contrastive Learning Perspective on Oversmoothing and Beyond"
+    }
   ]
 }
