@@ -6,5 +6,82 @@
     "PairNorm oversmoothing",
     "JK-Net GNN",
     "residual connections GNN"
+  ],
+  "research_study_list": [
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "Demystifying Oversmoothing in Attention-Based Graph Neural Networks"
+    },
+    {
+      "title": "Revisiting Over-smoothing and Over-squashing Using Ollivier-Ricci Curvature"
+    },
+    {
+      "title": "Graph Neural Networks Do Not Always Oversmooth"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "ContraNorm: A Contrastive Learning Perspective on Oversmoothing and Beyond"
+    },
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "Not too little, not too much: a theoretical analysis of graph (over)smoothing"
+    },
+    {
+      "title": "Rethinking Independent Cross-Entropy Loss For Graph-Structured Data"
+    },
+    {
+      "title": "GraphQNTK: Quantum Neural Tangent Kernel for Graph Data"
+    },
+    {
+      "title": "Universal Graph Convolutional Networks"
+    },
+    {
+      "title": "From Node Interaction To Hop Interaction: New Effective and Scalable Graph Learning Paradigm"
+    },
+    {
+      "title": "Convolutional Kernel Networks for Graph-Structured Data"
+    },
+    {
+      "title": "Graph Neural Networks with Adaptive Residual"
+    },
+    {
+      "title": "Deep Graph Neural Networks via Posteriori-Sampling-based Node-Adaptative Residual Module"
+    },
+    {
+      "title": "Simple and Deep Graph Convolutional Networks"
+    },
+    {
+      "title": "Scattering GCN: Overcoming Oversmoothness in Graph Convolutional Networks"
+    },
+    {
+      "title": "Riemannian Residual Neural Networks"
+    }
   ]
 }
