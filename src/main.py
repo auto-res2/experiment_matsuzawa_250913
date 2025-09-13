@@ -5,8 +5,8 @@ Complies with the required CLI flags:
     uv run python -m src.main --smoke-test
     uv run python -m src.main --full-experiment
 
-Images are saved under .research/iteration2/images
-JSON metrics are saved directly under .research/iteration2/
+Images are saved under .research/iteration3/images
+JSON metrics are saved directly under .research/iteration3/
 """
 from __future__ import annotations
 
@@ -68,10 +68,10 @@ def _make_random_masks(num_nodes: int, train_ratio=0.6, val_ratio=0.2):
     return train_mask, val_mask, test_mask
 
 # ---------------------------------------------------------------------------
-# Paths (fixed by spec)
+# Paths (updated to comply with iteration3 spec)
 # ---------------------------------------------------------------------------
 
-JSON_DIR = pathlib.Path(".research/iteration2")
+JSON_DIR = pathlib.Path(".research/iteration3")
 IMG_DIR = JSON_DIR / "images"
 IMG_DIR.mkdir(parents=True, exist_ok=True)
 JSON_DIR.mkdir(parents=True, exist_ok=True)
@@ -150,7 +150,7 @@ def _run_full() -> None:
                 )
                 result, curve = trainer.run()
 
-                # Flat file naming ensures all JSON files live directly under .research/iteration2/
+                # Flat file naming ensures all JSON files live directly under .research/iteration3/
                 json_fname = f"{ds}__{model_name}__seed{seed}.json"
                 save_json(result, JSON_DIR / json_fname)
 

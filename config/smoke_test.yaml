@@ -1,6 +1,6 @@
 experiment: "smoke"
 seed: 0
-save_dir: ".research/iteration2"
+save_dir: ".research/iteration3"
 # ---- experiment 1 ----
 epochs: 5
 datasets: ["synthetic_ring_L4"]
