@@ -17,21 +17,28 @@ _repo_root = _pkg_root.parent               # project root
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-# Try the standard relative imports first --------------------------------------
+# -----------------------------------------------------------------------------
+# First, try the _simplest_ import strategy: directly import the loose source
+# files that live at the repository root.  This avoids the relative `.` imports
+# that previously failed because the modules were not inside the `src/` package.
+# -----------------------------------------------------------------------------
 try:
-    from .train import train_experiment, create_resource_shock_trace  # type: ignore
-    from .preprocess_py import DataPreprocessor  # type: ignore
-    from .evaluate import (
+    from train_py import train_experiment, create_resource_shock_trace  # type: ignore
+    from preprocess_py import DataPreprocessor  # type: ignore
+    from evaluate_py import (
         generate_comparison_table,
         visualize_results,
         save_results_json,
-    )
+    )  # type: ignore
 except ImportError:
     # -------------------------------------------------------------------------
-    # Fallback strategy: import from loose files sitting at the repo root.
+    # Fallback strategy: dynamically load modules from whichever location we
+    # can find them (this also supports the installed wheel where the loose
+    # source files may be missing).
     # -------------------------------------------------------------------------
-    # ---- helper to load a module from an arbitrary path ----------------------
+
     def _load_from_path(mod_name: str, path: Path):
+        """Utility to import *mod_name* from a concrete *path* at runtime."""
         spec = importlib.util.spec_from_file_location(mod_name, path)
         assert spec and spec.loader, f"Could not create spec for {path}"
         module = importlib.util.module_from_spec(spec)
@@ -40,72 +47,58 @@ except ImportError:
         return module
 
     # ---- train ---------------------------------------------------------------
-    try:
-        from train import train_experiment, create_resource_shock_trace  # type: ignore
-    except ImportError:
-        _train_candidates = [
-            _pkg_root / "train_py.py",
-            _pkg_root / "train_py",
-            _repo_root / "train_py.py",
-            _repo_root / "train_py",
-        ]
-        for _cand in _train_candidates:
-            if _cand.exists():
-                _mod = _load_from_path("train", _cand)
-                train_experiment = _mod.train_experiment  # type: ignore
-                create_resource_shock_trace = _mod.create_resource_shock_trace  # type: ignore
-                break
-        else:
-            raise
+    _train_candidates = [
+        _pkg_root / "train_py.py",
+        _pkg_root / "train_py",
+        _repo_root / "train_py.py",
+        _repo_root / "train_py",
+    ]
+    for _cand in _train_candidates:
+        if _cand.exists():
+            _mod = _load_from_path("train", _cand)
+            train_experiment = _mod.train_experiment  # type: ignore
+            create_resource_shock_trace = _mod.create_resource_shock_trace  # type: ignore
+            break
+    else:
+        raise ImportError("Could not locate train_py module.")
+
     # ---- evaluate ------------------------------------------------------------
-    try:
-        from evaluate import (
-            generate_comparison_table,
-            visualize_results,
-            save_results_json,
-        )  # type: ignore
-    except ImportError:
-        _eval_candidates = [
-            _pkg_root / "evaluate_py.py",
-            _pkg_root / "evaluate_py",
-            _repo_root / "evaluate_py.py",
-            _repo_root / "evaluate_py",
-        ]
-        for _cand in _eval_candidates:
-            if _cand.exists():
-                _mod = _load_from_path("evaluate", _cand)
-                generate_comparison_table = _mod.generate_comparison_table  # type: ignore
-                visualize_results = _mod.visualize_results  # type: ignore
-                save_results_json = _mod.save_results_json  # type: ignore
-                break
-        else:
-            raise
+    _eval_candidates = [
+        _pkg_root / "evaluate_py.py",
+        _pkg_root / "evaluate_py",
+        _repo_root / "evaluate_py.py",
+        _repo_root / "evaluate_py",
+    ]
+    for _cand in _eval_candidates:
+        if _cand.exists():
+            _mod = _load_from_path("evaluate", _cand)
+            generate_comparison_table = _mod.generate_comparison_table  # type: ignore
+            visualize_results = _mod.visualize_results  # type: ignore
+            save_results_json = _mod.save_results_json  # type: ignore
+            break
+    else:
+        raise ImportError("Could not locate evaluate_py module.")
+
     # ---- preprocess ----------------------------------------------------------
-    try:
-        from preprocess_py import DataPreprocessor  # type: ignore
-    except ImportError:
-        _pp_candidates = [
-            _pkg_root / "preprocess_py.py",
-            _pkg_root / "preprocess_py",
-            _repo_root / "preprocess_py.py",
-            _repo_root / "preprocess_py",
-        ]
-        for _cand in _pp_candidates:
-            if _cand.exists():
-                _mod = _load_from_path("preprocess_py", _cand)
-                DataPreprocessor = _mod.DataPreprocessor  # type: ignore
-                break
-        else:
-            raise ImportError(
-                "Failed to import DataPreprocessor: no preprocess_py module found "
-                "in installed package nor as a loose source file."
-            )
+    _pp_candidates = [
+        _pkg_root / "preprocess_py.py",
+        _pkg_root / "preprocess_py",
+        _repo_root / "preprocess_py.py",
+        _repo_root / "preprocess_py",
+    ]
+    for _cand in _pp_candidates:
+        if _cand.exists():
+            _mod = _load_from_path("preprocess_py", _cand)
+            DataPreprocessor = _mod.DataPreprocessor  # type: ignore
+            break
+    else:
+        raise ImportError("Could not locate preprocess_py module.")
 
 # -----------------------------------------------------------------------------
-# Paths (updated to iteration7 as mandated) ------------------------------------
+# Paths (updated to iteration8 as mandated) ------------------------------------
 CFG_DIR = _repo_root / "config"
-JSON_ROOT = Path(".research/iteration7")
-IMG_ROOT = Path(".research/iteration7/images")
+JSON_ROOT = Path(".research/iteration8")
+IMG_ROOT = Path(".research/iteration8/images")
 
 
 def _load_cfg(name: str):
