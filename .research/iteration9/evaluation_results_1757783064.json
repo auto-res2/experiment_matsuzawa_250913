@@ -1,0 +1,20 @@
+{
+  "exp1": {
+    "latency_reduction_pct": 99.16666666666667,
+    "bandwidth_reduction_pct": 97.222900390625,
+    "success": true
+  },
+  "exp2": {
+    "ttff_speedup": 3.6109364671918502,
+    "memory_kb": 5445.0625,
+    "success": false
+  },
+  "exp3": {
+    "flush_reduction": 1.0,
+    "privacy_mi": 0.22034211111068724,
+    "success": false
+  },
+  "statistical_tests": {
+    "latency_wilcoxon_p": 1.7763568394002505e-15
+  }
+}

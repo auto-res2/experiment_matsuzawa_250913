@@ -1,0 +1,82 @@
+{
+  "cfg": {
+    "output_dir": ".research/iteration9/outputs/full",
+    "seed": 42,
+    "pka": {
+      "num_pieces": 16,
+      "feature_dim": 1280
+    },
+    "hrcs": {
+      "num_tiers": 3
+    },
+    "taqs": {
+      "tile_size": 8
+    },
+    "cf_noise": {
+      "top_p": 0.1,
+      "noise_sigma": 0.05
+    },
+    "inference": {
+      "num_steps": 32
+    },
+    "max_coco_samples": 300,
+    "num_sessions": 100
+  },
+  "metrics": {
+    "experiment_1_sldo": {
+      "median_latency_ms": 2.0,
+      "total_kb_transmitted": 28.4375,
+      "total_energy_j": 768.0,
+      "taqs_skip_ratio": 0.0,
+      "baseline_latency_ms": 7680,
+      "baseline_kb": 1024,
+      "latency_reduction": 0.9916666666666667,
+      "bandwidth_reduction": 0.97222900390625,
+      "assignment_status": "optimal"
+    },
+    "experiment_2_pka": {
+      "cold_ttff_ms": 200.5321830511093,
+      "pka_ttff_ms": 55.53467497229576,
+      "improvement_factor": 3.6109364671918502,
+      "quality_delta": 2.011784076690674,
+      "memory_kb": 5445.0625
+    },
+    "experiment_3_fairness": {
+      "full_flush_rate": 0.99,
+      "cf_flush_rate": 0.99,
+      "full_flush_latency_ms": 10.145303990804788,
+      "cf_latency_ms": 2.7465471489862963,
+      "privacy_mi": 0.22034211111068724,
+      "fairness_kl": 0.003,
+      "flush_reduction": 1.0
+    },
+    "summary": {
+      "latency_reduction": "99.2%",
+      "bandwidth_reduction": "97.2%",
+      "pka_speedup": "3.6x",
+      "fairness_improvement": "1.0x"
+    }
+  },
+  "eval": {
+    "exp1": {
+      "latency_reduction_pct": 99.16666666666667,
+      "bandwidth_reduction_pct": 97.222900390625,
+      "success": true
+    },
+    "exp2": {
+      "ttff_speedup": 3.6109364671918502,
+      "memory_kb": 5445.0625,
+      "success": false
+    },
+    "exp3": {
+      "flush_reduction": 1.0,
+      "privacy_mi": 0.22034211111068724,
+      "success": false
+    },
+    "statistical_tests": {
+      "latency_wilcoxon_p": 1.7763568394002505e-15
+    }
+  },
+  "tag": "full",
+  "ts": 1757783064.1181343
+}
