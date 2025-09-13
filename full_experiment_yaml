@@ -1,0 +1,35 @@
+# Full-scale configuration (multi-GPU, full datasets)
+experiment_name: prophet_curb_full
+seed: 42
+output_dir: ./.research/iteration1
+data_root: ./data
+
+datasets:
+  - reddit-t
+  - ogbn-arxiv
+
+models:
+  - name: PROPHET-CURB
+    params:
+      hidden_dim: 256
+      output_dim: 40
+      num_layers: 8
+      dropout: 0.1
+      use_lamc: true
+      use_maca: true
+    cssf:
+      latent_dim: 64
+      koopman_order: 2
+      horizon: 5
+      evidential_lambda: 10.0
+
+training:
+  epochs: 200
+  learning_rate: 3e-4
+  weight_decay: 5e-5
+  early_stopping_patience: 20
+
+wandb:
+  enabled: true
+  project: prophet-curb
+  name: full_experiment

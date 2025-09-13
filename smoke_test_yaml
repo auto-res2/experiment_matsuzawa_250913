@@ -1,0 +1,32 @@
+# Smoke-test configuration – runs in <2 min on CPU
+experiment_name: prophet_curb_smoke
+seed: 42
+output_dir: ./.research/iteration1
+data_root: ./data
+
+datasets:
+  - cora
+
+models:
+  - name: PROPHET-CURB
+    params:
+      hidden_dim: 64
+      output_dim: 7
+      num_layers: 4
+      dropout: 0.1
+      use_lamc: true
+      use_maca: true
+    cssf:
+      latent_dim: 32
+      koopman_order: 1
+      horizon: 3
+      evidential_lambda: 1.0
+
+training:
+  epochs: 30
+  learning_rate: 0.001
+  weight_decay: 5e-5
+  early_stopping_patience: 10
+
+wandb:
+  enabled: false

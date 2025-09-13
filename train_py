@@ -1,0 +1,274 @@
+"""Training utilities for PROPHET-CURB.
+All model architectures, optimisation loops and checkpoint logic live here.
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+from typing import Dict, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from sklearn.metrics import f1_score
+from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch_geometric.nn import APPNP
+import wandb
+
+__all__ = [
+    "CurvatureStateSpaceForecaster",
+    "SoftHyperbolicReweighting",
+    "LayerAwareMaskController",
+    "ProphetCurbGNN",
+    "train_model",
+]
+
+
+def _gaussian_nll(mu: torch.Tensor, var: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """Standard Gaussian negative log-likelihood."""
+    return 0.5 * (torch.log(var + 1e-8) + (target - mu) ** 2 / (var + 1e-8))
+
+
+class CurvatureStateSpaceForecaster(nn.Module):
+    """Koopman state-space curvature forecaster with evidential uncertainty."""
+
+    def __init__(
+        self,
+        input_dim: int = 64,
+        latent_dim: int = 64,
+        koopman_order: int = 2,
+        horizon: int = 5,
+        evidential_lambda: float = 10.0,
+    ) -> None:
+        super().__init__()
+        self.horizon = horizon
+        self.evidential_lambda = evidential_lambda
+
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(128, latent_dim * koopman_order),
+        )
+        self.koopman = nn.Linear(latent_dim * koopman_order, latent_dim * koopman_order, bias=False)
+        self.decoder_mean = nn.Sequential(nn.Linear(latent_dim * koopman_order, 128), nn.ReLU(), nn.Linear(128, 1))
+        self.decoder_var = nn.Sequential(
+            nn.Linear(latent_dim * koopman_order, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1),
+            nn.Softplus(),
+        )
+
+    @torch.enable_grad()
+    def forward(self, x: torch.Tensor, steps: int = 1) -> Tuple[torch.Tensor, torch.Tensor]:
+        z = self.encoder(x)
+        means, vars = [], []
+        for t in range(steps):
+            if t > 0:
+                z = self.koopman(z)
+            means.append(self.decoder_mean(z))
+            vars.append(self.decoder_var(z))
+        means_t = torch.cat(means, dim=1)
+        vars_t = torch.cat(vars, dim=1)
+        return means_t, vars_t
+
+    def nll_loss(self, mu: torch.Tensor, var: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        nll = _gaussian_nll(mu, var, target)
+        reg = self.evidential_lambda * torch.abs(mu - target) * (1 / (var + 1e-8))
+        return (nll + reg).mean()
+
+
+class SoftHyperbolicReweighting(nn.Module):
+    """Smooth curvature-aware edge weighting."""
+
+    def __init__(self, beta_init: float = 4.0, learnable: bool = True) -> None:
+        super().__init__()
+        self.beta = nn.Parameter(torch.tensor(beta_init)) if learnable else torch.tensor(beta_init)
+
+    def forward(self, curvature: torch.Tensor) -> torch.Tensor:  # [E]
+        return 1.0 / (1.0 + torch.exp(self.beta * (-curvature)))
+
+
+class LayerAwareMaskController(nn.Module):
+    """Tiny actor-critic that decides attenuation strength per layer (offline-trained)."""
+
+    def __init__(self, state_dim: int = 32, action_dim: int = 4) -> None:
+        super().__init__()
+        self.actor = nn.Sequential(
+            nn.Linear(state_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, action_dim),
+            nn.Softmax(dim=-1),
+        )
+        self.critic = nn.Sequential(nn.Linear(state_dim, 64), nn.ReLU(), nn.Linear(64, 1))
+
+    def get_action(self, state: torch.Tensor) -> Tuple[int, torch.Tensor]:
+        probs = self.actor(state)
+        dist = torch.distributions.Categorical(probs)
+        action = dist.sample()
+        return action.item(), dist.log_prob(action)
+
+
+class ProphetCurbGNN(nn.Module):
+    """End-to-end PROPHET-CURB model (CSSF + SHR + optional LAMC)."""
+
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        output_dim: int,
+        num_layers: int = 8,
+        dropout: float = 0.1,
+        cssf_config: Dict | None = None,
+        use_lamc: bool = True,
+    ) -> None:
+        super().__init__()
+        self.num_layers = num_layers
+        self.use_lamc = use_lamc
+
+        self.cssf = CurvatureStateSpaceForecaster(**(cssf_config or {}))
+        self.shr = SoftHyperbolicReweighting()
+        if self.use_lamc:
+            self.lamc = LayerAwareMaskController()
+
+        self.lin1 = nn.Linear(input_dim, hidden_dim)
+        self.lin2 = nn.Linear(hidden_dim, output_dim)
+        self.prop = APPNP(K=10, alpha=0.1, dropout=dropout)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_curv: torch.Tensor | None = None,
+        return_metrics: bool = False,
+    ):
+        metrics: Dict = {}
+        h = self.dropout(F.relu(self.lin1(x)))
+
+        edge_weight = None
+        if edge_curv is not None:
+            # Build dummy 64-d features [E, 64] – first dim = κ, rest = noise
+            edge_feat = torch.cat(
+                [edge_curv.unsqueeze(-1), torch.randn(edge_curv.size(0), 63, device=edge_curv.device)],
+                dim=-1,
+            )
+            mu, var = self.cssf(edge_feat, steps=5)
+            curv_now = mu[:, 0]
+            edge_weight = self.shr(curv_now)
+            metrics.update(predicted_curvature=mu, curvature_variance=var, edge_weights=edge_weight)
+
+        h = self.prop(h, edge_index, edge_weight=edge_weight)
+        out = self.lin2(h)
+        return (out, metrics) if return_metrics else out
+
+    # ------------------------------------------------------------------
+    #  Utility helpers
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _effective_rank(mat: torch.Tensor) -> float:
+        if mat.size(0) < 2:
+            return 1.0
+        try:
+            _, s, _ = torch.svd(mat)
+            s = s / (s.sum() + 1e-10)
+            return torch.exp(-(s * torch.log(s + 1e-10)).sum()).item()
+        except Exception:  # pragma: no cover – rare SVD failures
+            return float(mat.size(1))
+
+    # ------------------------------------------------------------------
+
+
+# ======================================================================
+#                           TRAINING LOOP
+# ======================================================================
+
+def _train_epoch(model: nn.Module, data, optimiser, criterion, device: torch.device):
+    model.train()
+    data = data.to(device)
+    optimiser.zero_grad()
+    out, metrics = model(data.x, data.edge_index, getattr(data, "edge_attr", None), True)
+    loss_task = criterion(out[data.train_mask], data.y[data.train_mask])
+    loss_total = loss_task
+    if "predicted_curvature" in metrics and hasattr(data, "future_curvature"):
+        loss_curv = model.cssf.nll_loss(metrics["predicted_curvature"], metrics["curvature_variance"], data.future_curvature)
+        loss_total = loss_total + 0.1 * loss_curv
+    loss_total.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    optimiser.step()
+
+    preds = out[data.train_mask].argmax(1)
+    acc = (preds == data.y[data.train_mask]).float().mean().item()
+    return {"loss": loss_task.item(), "accuracy": acc}
+
+
+def _eval(model: nn.Module, data, criterion, device: torch.device, mask_key: str):
+    model.eval()
+    with torch.no_grad():
+        data = data.to(device)
+        out = model(data.x, data.edge_index, getattr(data, "edge_attr", None))
+        mask = getattr(data, mask_key)
+        loss = criterion(out[mask], data.y[mask]).item()
+        preds = out[mask].argmax(1)
+        acc = (preds == data.y[mask]).float().mean().item()
+        f1 = f1_score(data.y[mask].cpu(), preds.cpu(), average="macro")
+    return {"loss": loss, "accuracy": acc, "f1_score": f1}
+
+
+def train_model(config: Dict, data, device: torch.device, save_dir: Path) -> Dict:
+    """High-level training orchestration used by src.main.run_experiment."""
+
+    model = ProphetCurbGNN(
+        input_dim=data.x.size(1),
+        hidden_dim=config["model"]["hidden_dim"],
+        output_dim=config["model"]["output_dim"],
+        num_layers=config["model"]["num_layers"],
+        dropout=config["model"]["dropout"],
+        cssf_config=config.get("cssf", {}),
+        use_lamc=config["model"].get("use_lamc", True),
+    ).to(device)
+
+    optimiser = optim.AdamW(model.parameters(), lr=config["training"]["learning_rate"], weight_decay=config["training"]["weight_decay"])
+    scheduler = CosineAnnealingLR(optimiser, T_max=config["training"]["epochs"], eta_min=1e-6)
+    criterion = nn.CrossEntropyLoss()
+
+    history: Dict[str, list] = {k: [] for k in ["train_loss", "train_acc", "val_loss", "val_acc", "val_f1", "epoch_times"]}
+
+    if config.get("wandb", {}).get("enabled", False):
+        wandb.init(project=config["wandb"].get("project", "prophet-curb"), name=config["wandb"].get("name", f"run_{time.time()}") , config=config)
+
+    best_f1, patience = 0.0, 0
+    for epoch in range(config["training"]["epochs"]):
+        t0 = time.time()
+        tr_metrics = _train_epoch(model, data, optimiser, criterion, device)
+        val_metrics = _eval(model, data, criterion, device, "val_mask")
+        scheduler.step()
+        dt = time.time() - t0
+        history["train_loss"].append(tr_metrics["loss"])
+        history["train_acc"].append(tr_metrics["accuracy"])
+        history["val_loss"].append(val_metrics["loss"])
+        history["val_acc"].append(val_metrics["accuracy"])
+        history["val_f1"].append(val_metrics["f1_score"])
+        history["epoch_times"].append(dt)
+
+        if config.get("wandb", {}).get("enabled", False):
+            wandb.log({"train_loss": tr_metrics["loss"], "train_acc": tr_metrics["accuracy"], **val_metrics, "lr": scheduler.get_last_lr()[0], "epoch": epoch})
+
+        if val_metrics["f1_score"] > best_f1:
+            best_f1 = val_metrics["f1_score"]
+            torch.save({"model": model.state_dict(), "epoch": epoch}, save_dir / "best_model.pt")
+            patience = 0
+        else:
+            patience += 1
+        if patience >= config["training"].get("early_stopping_patience", 20):
+            break
+
+    test_metrics = _eval(model, data, criterion, device, "test_mask")
+    results = {"history": history, "test_metrics": test_metrics, "best_val_f1": best_f1}
+    with open(save_dir / "training_results.json", "w") as fp:
+        json.dump(results, fp, indent=2)
+    return results

@@ -1,0 +1,104 @@
+"""Entry point for running smoke/full experiments.
+
+Usage:
+    uv run python -m src.main --smoke-test
+    uv run python -m src.main --full-experiment
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from pathlib import Path
+from typing import Dict
+
+import torch
+import yaml
+
+from .preprocess import load_dataset, prepare_temporal_data
+from .train import train_model
+from .evaluate import main_evaluation
+
+
+# ------------------------------------------------------------------
+#  Helpers
+# ------------------------------------------------------------------
+
+def _set_seed(seed: int):
+    import numpy as np
+
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+# ------------------------------------------------------------------
+#  Core runner
+# ------------------------------------------------------------------
+
+def _run(cfg: Dict, tag: str):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    exp_root = Path(cfg["output_dir"]) / tag / f"run_{int(time.time())}"
+    exp_root.mkdir(parents=True, exist_ok=True)
+
+    with open(exp_root / "config.yaml", "w") as fp:
+        yaml.safe_dump(cfg, fp)
+
+    all_res = {}
+    for ds in cfg["datasets"]:
+        print(f"\n=== Dataset: {ds} ===")
+        if ds in {"cora"}:  # static dataset for smoke-test
+            data = load_dataset(ds, cfg["data_root"])
+        else:
+            data = prepare_temporal_data(ds, cfg["data_root"])[0]
+        for model_cfg in cfg["models"]:
+            name = model_cfg["name"]
+            print(f"Training {name} …")
+            _set_seed(cfg["seed"])
+            save_dir = exp_root / ds / name
+            save_dir.mkdir(parents=True, exist_ok=True)
+            merged_cfg = {"model": model_cfg["params"], "training": cfg["training"], "cssf": model_cfg.get("cssf", {}), "wandb": cfg.get("wandb", {})}
+            res = train_model(merged_cfg, data, device, save_dir)
+            main_evaluation(save_dir, save_dir / "eval")
+            key = f"{ds}_{name}"
+            all_res[key] = res | {"model_name": name, "dataset": ds}
+
+    with open(exp_root / "all_results.json", "w") as fp:
+        json.dump(all_res, fp, indent=2)
+    print("\nFinished – results stored in", exp_root)
+
+
+# ------------------------------------------------------------------
+#  CLI
+# ------------------------------------------------------------------
+
+def main():  # noqa: D401
+    p = argparse.ArgumentParser("PROPHET-CURB runner")
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--smoke-test", action="store_true")
+    g.add_argument("--full-experiment", action="store_true")
+    p.add_argument("--config", type=str, help="custom yaml config")
+    args = p.parse_args()
+
+    cfg_path = (
+        Path(args.config)
+        if args.config
+        else Path("config/smoke_test.yaml")
+        if args.smoke_test
+        else Path("config/full_experiment.yaml")
+    )
+    if not cfg_path.exists():
+        print("Config not found:", cfg_path)
+        sys.exit(1)
+
+    with open(cfg_path) as fp:
+        cfg = yaml.safe_load(fp)
+    print("Loaded config", cfg_path)
+    _run(cfg, "smoke_test" if args.smoke_test else "full_experiment")
+
+
+if __name__ == "__main__":
+    main()

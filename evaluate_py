@@ -1,0 +1,66 @@
+"""Evaluation, plotting and summary utilities for PROPHET-CURB."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Dict, List
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+import torch
+from scipy import stats
+
+plt.rcParams.update({"figure.dpi": 120, "savefig.bbox": "tight"})
+
+
+# ---------------------------------------------------------------------
+# Helper functions used by plotting utilities
+# ---------------------------------------------------------------------
+
+def _save(fig, path: Path):
+    fig.tight_layout()
+    fig.savefig(path)
+    plt.close(fig)
+
+
+# ---------------------------------------------------------------------
+# Primary public API
+# ---------------------------------------------------------------------
+
+def plot_training_curves(history: Dict, out_path: Path):
+    epochs = range(len(history["train_loss"]))
+    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    ax[0].plot(epochs, history["train_loss"], label="train")
+    ax[0].plot(epochs, history["val_loss"], label="val")
+    ax[0].set_xlabel("epoch")
+    ax[0].set_ylabel("loss")
+    ax[0].legend()
+
+    ax[1].plot(epochs, history["train_acc"], label="train-acc")
+    ax[1].plot(epochs, history["val_acc"], label="val-acc")
+    ax[1].set_xlabel("epoch")
+    ax[1].set_ylabel("accuracy")
+    ax[1].legend()
+
+    _save(fig, out_path)
+
+
+def main_evaluation(results_dir: Path, out_dir: Path):
+    """Loads `training_results.json` and emits basic plots + json summary."""
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with open(results_dir / "training_results.json") as fp:
+        res = json.load(fp)
+
+    plot_training_curves(res["history"], out_dir / "curves.pdf")
+
+    summary = {
+        "test_accuracy": res["test_metrics"]["accuracy"],
+        "test_f1": res["test_metrics"]["f1_score"],
+        "best_val_f1": res["best_val_f1"],
+    }
+    with open(out_dir / "evaluation_report.json", "w") as fp:
+        json.dump(summary, fp, indent=2)
+    print(json.dumps(summary, indent=2))
+    return summary
