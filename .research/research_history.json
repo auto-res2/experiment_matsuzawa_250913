@@ -6,5 +6,82 @@
     "replay buffer quantization",
     "sparse experience replay",
     "continual learning parameter pruning"
+  ],
+  "research_study_list": [
+    {
+      "title": "Contextual Transformation Networks for Online Continual Learning"
+    },
+    {
+      "title": "SparCL: Sparse Continual Learning on the Edge"
+    },
+    {
+      "title": "Computationally Budgeted Continual Learning: What Does Matter?"
+    },
+    {
+      "title": "Continual Learning in Low-rank Orthogonal Subspaces"
+    },
+    {
+      "title": "MECTA: Memory-Economic Continual Test-Time Model Adaptation"
+    },
+    {
+      "title": "Online Learned Continual Compression with Adaptive Quantization Modules"
+    },
+    {
+      "title": "Remember the Past: Distilling Datasets into Addressable Memories for Neural Networks"
+    },
+    {
+      "title": "Contextual Transformation Networks for Online Continual Learning"
+    },
+    {
+      "title": "Forget-free Continual Learning with Winning Subnetworks"
+    },
+    {
+      "title": "Forget-free Continual Learning with Winning Subnetworks"
+    },
+    {
+      "title": "Analysis of Stochastic Processes through Replay Buffers"
+    },
+    {
+      "title": "Analysis of Stochastic Processes through Replay Buffers"
+    },
+    {
+      "title": "Revisiting Fundamentals of Experience Replay"
+    },
+    {
+      "title": "Large Batch Experience Replay"
+    },
+    {
+      "title": "Large Batch Experience Replay"
+    },
+    {
+      "title": "The State of Sparse Training in Deep Reinforcement Learning"
+    },
+    {
+      "title": "The State of Sparse Training in Deep Reinforcement Learning"
+    },
+    {
+      "title": "Memory Based Trajectory-conditioned Policies for Learning from Sparse Rewards"
+    },
+    {
+      "title": "Replay Memory as An Empirical MDP: Combining Conservative Estimation with Experience Replay"
+    },
+    {
+      "title": "Fuzzy Tiling Activations: A Simple Approach to Learning Sparse Representations Online"
+    },
+    {
+      "title": "Uncertainty-guided Continual Learning with Bayesian Neural Networks"
+    },
+    {
+      "title": "SparCL: Sparse Continual Learning on the Edge"
+    },
+    {
+      "title": "Bayesian Structural Adaptation for Continual Learning"
+    },
+    {
+      "title": "Scalable and Order-robust Continual Learning with Additive Parameter Decomposition"
+    },
+    {
+      "title": "Long Live the Lottery: The Existence of Winning Tickets in Lifelong Learning"
+    }
   ]
 }
