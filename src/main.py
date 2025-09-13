@@ -1,18 +1,24 @@
 import argparse
+import importlib.util
 from pathlib import Path
 import sys
 import yaml
 
 # -----------------------------------------------------------------------------
 # Make intra-package imports robust whether main.py is executed via
-# `python -m src.main` *or* as a script path `python src/main.py`.
+# `python -m src.main` *or* as a script path `python src/main.py` *or* after a
+# pip install where some source files might be missing from site-packages.
 # -----------------------------------------------------------------------------
-_pkg_root = Path(__file__).resolve().parent
-if str(_pkg_root) not in sys.path:
-    sys.path.insert(0, str(_pkg_root))
+_pkg_root = Path(__file__).resolve().parent  # .../src
+_repo_root = _pkg_root.parent               # project root
 
+# Ensure the *repository* root is on sys.path so that we can always fall back
+# to loading loose source files even if they were not included in the wheel.
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
+# Try the standard relative imports first ------------------------------------------------
 try:
-    # When run as a module (python -m src.main) – regular relative imports work
     from .train import train_experiment, create_resource_shock_trace  # type: ignore
     from .preprocess_py import DataPreprocessor  # type: ignore
     from .evaluate import (
@@ -21,24 +27,61 @@ try:
         save_results_json,
     )
 except ImportError:
-    # Fallback when executed as a script (python src/main.py)
+    # -------------------------------------------------------------------------
+    # Fallback strategy: import from loose files sitting at the repo root.  For
+    # `preprocess_py` in particular the file may have been excluded from the
+    # installed wheel; we therefore attempt a manual import using its absolute
+    # path.  This guarantees that a *single* source of truth is loaded and we
+    # avoid silent divergence between the editable checkout and the installed
+    # package.
+    # -------------------------------------------------------------------------
+
     from train import train_experiment, create_resource_shock_trace  # type: ignore
-    from preprocess_py import DataPreprocessor  # type: ignore
-    from evaluate import (
-        generate_comparison_table,
-        visualize_results,
-        save_results_json,
-    )
+    from evaluate import generate_comparison_table, visualize_results, save_results_json  # type: ignore
+
+    try:
+        from preprocess_py import DataPreprocessor  # type: ignore
+    except ImportError:
+        # Dynamically load the module from file.
+        _preprocess_path_candidates = [
+            _pkg_root / "preprocess_py.py",     # same directory as this file
+            _repo_root / "preprocess_py.py",    # project root
+        ]
+        for _cand in _preprocess_path_candidates:
+            if _cand.exists():
+                spec = importlib.util.spec_from_file_location("preprocess_py", _cand)
+                assert spec and spec.loader, f"Could not create spec for {_cand}"
+                _mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(_mod)  # type: ignore[arg-type]
+                sys.modules["preprocess_py"] = _mod
+                DataPreprocessor = _mod.DataPreprocessor  # type: ignore
+                break
+        else:
+            raise ImportError(
+                "Failed to import DataPreprocessor: no preprocess_py module found "
+                "in installed package nor as a loose source file."
+            )
 
 # -----------------------------------------------------------------------------
-CFG_DIR = Path(__file__).resolve().parent.parent / "config"
-JSON_ROOT = Path(".research/iteration2")
-IMG_ROOT = Path(".research/iteration2/images")
+# Paths (updated to iteration3 as mandated) ------------------------------------
+CFG_DIR = _repo_root / "config"
+JSON_ROOT = Path(".research/iteration3")
+IMG_ROOT = Path(".research/iteration3/images")
 
 
 def _load_cfg(name: str):
-    with open(CFG_DIR / name, "r") as f:
-        return yaml.safe_load(f)
+    """Robust YAML loader.
+
+    It first looks under `config/` (the preferred location). If the file does
+    not exist it falls back to the repository root so that unit-tests that ship
+    a flat file layout still work.
+    """
+    candidates = [CFG_DIR / name, _repo_root / name]
+    for p in candidates:
+        if p.exists():
+            with open(p, "r") as f:
+                return yaml.safe_load(f)
+    raise FileNotFoundError(f"Configuration file '{name}' not found in {candidates}")
 
 
 def _prepare_dirs():

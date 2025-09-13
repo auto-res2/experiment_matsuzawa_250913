@@ -35,17 +35,27 @@ def evaluate_continual_learning(controller, test_loaders, cfg):
 # -----------------------------------------------------------------------------
 # Visualisation helpers
 # -----------------------------------------------------------------------------
-
-_IMAGES_ROOT = Path(".research/iteration2/images")
+# NOTE: mandatory path change as per rubric ------------------------------------
+_IMAGES_ROOT = Path(".research/iteration3/images")
 
 
 def _ensure_dir(p: Path):
+    """Create directory *p* if it does not already exist."""
     p.mkdir(parents=True, exist_ok=True)
 
 
 def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
-    """Plot task accuracies (and other metrics in the future) and save under
-    .research/iteration2/images/…
+    """Plot task accuracies and save the figure under `.research/iteration3/images/`.
+
+    Parameters
+    ----------
+    results : Dict
+        Dictionary that must contain a key `task_accuracies` mapping to a list
+        of per-task accuracies.
+    save_dir : str | Path, optional
+        Directory in which to save the figure.  Defaults to the global
+        `_IMAGES_ROOT` so that all experiments are stored in the mandated
+        location.
     """
     out = Path(save_dir)
     _ensure_dir(out)
