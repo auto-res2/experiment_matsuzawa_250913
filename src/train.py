@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
+import numpy as sns
 import numpy as np
-import seaborn as sns
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -74,11 +74,10 @@ class CountMinSketch:
         self.width = width
         self.depth = depth
         self.table = torch.zeros(depth, width)
-        self.hash_seeds = torch.randint(0, 2 ** 32, (depth,))
+        self.hash_seeds = torch.randint(0, 2**32, (depth,))
 
     def _hash(self, item: torch.Tensor, seed: int) -> int:
         """MD5-based hash of the tensor bytes with an additional 32-bit seed."""
-        # Detach to avoid autograd issues, then move to CPU before converting to NumPy
         item_hash = int(hashlib.md5(item.detach().cpu().numpy().tobytes()).hexdigest(), 16)
         return (item_hash + seed) % self.width
 
@@ -108,8 +107,7 @@ class AlphaStableKoopmanFilter(nn.Module):
         self.alpha = alpha
         self.scales = scales
         self.koopman_ops = nn.ModuleList([nn.Linear(dim, dim, bias=False) for _ in range(scales)])
-        # (scale, location)
-        self.scale_params = nn.Parameter(torch.randn(scales, 2))
+        self.scale_params = nn.Parameter(torch.randn(scales, 2))  # (scale, location)
         self.sketch = CountMinSketch(width=256, depth=4)
 
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:  # noqa: D401,E501
@@ -143,10 +141,9 @@ class CurvatureContrastiveAlignment(nn.Module):
 
     def forward(self, x_l: torch.Tensor, x_g: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:  # noqa: D401,E501
         row, col = edge_index
-        # torch_geometric>=2.6 drops the `device` argument
         deg = degree(col, x_l.size(0), dtype=x_l.dtype)
         curv_l = self._forman(edge_index, deg)
-        curv_g = curv_l.clone()  # identical indices in this placeholder implementation
+        curv_g = curv_l.clone()
         z_l = self.projector(curv_l.unsqueeze(-1).expand(-1, x_l.size(1)))
         z_g = self.projector(curv_g.unsqueeze(-1).expand(-1, x_l.size(1)))
         idx = torch.randperm(z_l.size(0), device=z_l.device)[: min(128, z_l.size(0))]
@@ -245,7 +242,7 @@ class GCNLayer(MessagePassing):
         edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
         x = self.lin(x)
         row, col = edge_index
-        deg = degree(col, x.size(0), dtype=x.dtype)  # removed deprecated `device` arg
+        deg = degree(col, x.size(0), dtype=x.dtype)
         deg_inv_sqrt = deg.pow(-0.5)
         deg_inv_sqrt[torch.isinf(deg_inv_sqrt)] = 0
         norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
@@ -415,6 +412,8 @@ def save_training_results(results: Dict, path: str):
     with open(path, "w") as f:
         json.dump(_clean(results), f, indent=2)
     print(f"Training results saved → {path}")
+    # Print JSON to stdout for verification
+    print(json.dumps(_clean(results), indent=2))
 
 
 def plot_training_curves(metrics: Dict, save_path: str):

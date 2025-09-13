@@ -72,7 +72,9 @@ def evaluate_model(model, loader, cfg, device: Optional[str] = None) -> Tuple[Di
             labs.append(batch.y.cpu())
     preds, labs = torch.cat(preds), torch.cat(labs)
     acc = accuracy_score(labs, preds.argmax(1))
-    prec, rec, f1, _ = precision_recall_fscore_support(labs, preds.argmax(1), average="weighted")
+    prec, rec, f1, _ = precision_recall_fscore_support(
+        labs, preds.argmax(1), average="weighted", zero_division=0
+    )
     tail_ece = compute_tail_ece(preds, labs)
     # Dummy sensitive attribute for smoke/fallback
     sens = torch.zeros_like(labs)
@@ -94,6 +96,8 @@ def save_evaluation_results(res: Dict, path: str):
     with open(path, "w") as f:
         json.dump(res, f, indent=2)
     print(f"Evaluation results saved → {path}")
+    # Print JSON to stdout for verification
+    print(json.dumps(res, indent=2))
 
 
 def plot_confusion_matrix(lab: Tensor, pred: Tensor, path: str, class_names: Optional[List[str]] = None):
