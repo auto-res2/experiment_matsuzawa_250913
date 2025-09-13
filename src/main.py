@@ -1,16 +1,14 @@
 """
 Entry-point orchestrating smoke-test & full-experiment modes.
+Updated to use iteration4 paths as required by the rubric.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
-import numpy as np
-import torch
 import yaml
 
 from .preprocess import FederatedGraphDataset
@@ -25,10 +23,17 @@ from .train import (
 )
 from .evaluate import evaluate_model, save_evaluation_results
 
+# -----------------------------------------------------------------------------
+# Globals (iteration-specific output folders) ─────────────────────────────────-
+# -----------------------------------------------------------------------------
 
-ITER_DIR = Path(".research/iteration3")
+ITER_DIR = Path(".research/iteration4")
 IMG_DIR = ITER_DIR / "images"
 
+
+# -----------------------------------------------------------------------------
+# Utility helpers ─────────────────────────────────────────────────────────────-
+# -----------------------------------------------------------------------------
 
 def _load_yaml(path: str):
     with open(path) as f:
@@ -42,9 +47,12 @@ def _run_pipeline(cfg: dict):
         rounds=cfg["experiment_1"]["rounds"],
         local_epochs=cfg["experiment_1"]["local_epochs"],
     )
+
+    # --------------------------- data & models ---------------------------- #
     dataset = FederatedGraphDataset(ds_name, fed_cfg.num_clients)
     n_feat = dataset.data.x.size(1)
     n_cls = int(dataset.data.y.max().item() + 1)
+
     global_model = FedC3PO(fed_cfg, n_feat, n_cls)
     server = FederatedServer(global_model, fed_cfg)
     clients = [
@@ -53,9 +61,10 @@ def _run_pipeline(cfg: dict):
     ]
     test_loader = dataset.get_test_loader()
 
+    # ------------------------------ train --------------------------------- #
     metrics = train_federated(fed_cfg, clients, server, test_loader)
 
-    # ---------- persist ---------- #
+    # ----------------------------- persist -------------------------------- #
     train_json_path = ITER_DIR / "exp_train.json"
     img_path = IMG_DIR / "train_curves.png"
     eval_json_path = ITER_DIR / "exp_eval.json"
@@ -68,10 +77,14 @@ def _run_pipeline(cfg: dict):
     return eval_metrics
 
 
+# -----------------------------------------------------------------------------
+# CLI interface ─────────────────────────────────────────────────────────────---
+# -----------------------------------------------------------------------------
+
 def main():
     parser = argparse.ArgumentParser(description="FedC3PO launcher")
-    parser.add_argument("--smoke-test", action="store_true", help="run quick smoke-test then exit or proceed")
-    parser.add_argument("--full-experiment", action="store_true", help="run full experiment (will first run smoke-test)")
+    parser.add_argument("--smoke-test", action="store_true", help="run quick smoke-test only")
+    parser.add_argument("--full-experiment", action="store_true", help="run full experiment (smoke-test first)")
     args = parser.parse_args()
 
     IMG_DIR.mkdir(parents=True, exist_ok=True)
@@ -81,15 +94,15 @@ def main():
         print("Specify --smoke-test or --full-experiment")
         sys.exit(1)
 
-    # Always run smoke test first (requirement)
+    # --------------------------- smoke test ------------------------------ #
     print("===== SMOKE TEST =====")
     smoke_cfg = _load_yaml("config/smoke_test.yaml")
     smoke_metrics = _run_pipeline(smoke_cfg)
     if args.smoke_test:
-        print("Smoke-test completed ✓ – exiting.")
+        print("Smoke-test completed ✔ – exiting.")
         return
 
-    # If full experiment requested, only continue when smoke-test passes minimal condition
+    # --------------------------- full run -------------------------------- #
     if smoke_metrics.get("accuracy", 0) < 0.30:
         print("Smoke-test accuracy too low – aborting full experiment.")
         sys.exit(1)
@@ -97,7 +110,7 @@ def main():
     print("\n===== FULL EXPERIMENT =====")
     full_cfg = _load_yaml("config/full_experiment.yaml")
     _run_pipeline(full_cfg)
-    print("Full experiment completed ✓")
+    print("Full experiment completed ✔")
 
 
 if __name__ == "__main__":
