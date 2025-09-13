@@ -2,7 +2,7 @@
 # Keep all tensor sizes and iteration counts small so that the run finishes in
 # <30 seconds on a single CPU core.
 
-output_dir: ".research/iteration2/outputs/smoke"
+output_dir: ".research/iteration3/outputs/smoke"
 
 pka:
   num_pieces: 4

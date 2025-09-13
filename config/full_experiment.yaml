@@ -1,7 +1,7 @@
 # Full-scale configuration.  The values are still modest to comply with the
 # automated execution budget but significantly larger than the smoke version.
 
-output_dir: ".research/iteration2/outputs/full"
+output_dir: ".research/iteration3/outputs/full"
 
 pka:
   num_pieces: 16

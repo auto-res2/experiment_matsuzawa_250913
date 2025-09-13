@@ -10,11 +10,17 @@ authors = [
 ]
 
 # ---------------------------------------------------------------------------
-# Runtime dependencies.  Only the essentials are listed to keep the execution
-# environment light for automated grading.  Heavy libraries like diffusers are
-# *not* pinned because they are not used in the smoke-test path.
+# Runtime dependencies.  PEP-621 specifies that these must be provided as an
+# *array* under the single key `dependencies`, **not** as a separate table.  The
+# previous version used the invalid `[project.dependencies]` table which broke
+# TOML parsing.  We switch to the standards-compliant list notation below.
 # ---------------------------------------------------------------------------
-[project.dependencies]
-torch = "*"
-pyyaml = "*"
-numpy = "*"
+dependencies = [
+  "torch",
+  "pyyaml",
+  "numpy"
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
