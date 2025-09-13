@@ -48,16 +48,20 @@ class DataPreprocessor:
         root = Path(root)
         root.mkdir(exist_ok=True)
         if dataset_name == "vision":
-            tr = T.Compose([
-                T.RandomCrop(32, padding=4),
-                T.RandomHorizontalFlip(),
-                T.ToTensor(),
-                T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-            ])
-            te = T.Compose([
-                T.ToTensor(),
-                T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-            ])
+            tr = T.Compose(
+                [
+                    T.RandomCrop(32, padding=4),
+                    T.RandomHorizontalFlip(),
+                    T.ToTensor(),
+                    T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                ]
+            )
+            te = T.Compose(
+                [
+                    T.ToTensor(),
+                    T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                ]
+            )
             self.train_ds = _SplitCIFAR100(True, tr)
             self.test_ds = _SplitCIFAR100(False, te)
         else:
@@ -67,6 +71,10 @@ class DataPreprocessor:
     def get_task_loader(self, tid: int, batch_size: int = 32, train: bool = True):
         return (self.train_ds if train else self.test_ds).loader(tid, batch_size)
 
-# Make discoverable as top-level module when imported via "preprocess_py" --------
+# -----------------------------------------------------------------------------
+# Make discoverable under multiple import paths so that `import src.preprocess_py`
+# or `import preprocess_py` – both work without duplicating files in `src/`.
+# -----------------------------------------------------------------------------
 import sys as _sys
 _sys.modules.setdefault("preprocess_py", _sys.modules[__name__])
+_sys.modules.setdefault("src.preprocess_py", _sys.modules[__name__])

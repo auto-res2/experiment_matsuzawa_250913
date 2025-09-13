@@ -33,8 +33,8 @@ def evaluate_continual_learning(controller, test_loaders, cfg):
 
 
 # -----------------------------------------------------------------------------
-# Visualisation helpers (paths updated to iteration5) --------------------------
-_IMAGES_ROOT = Path(".research/iteration5/images")
+# Visualisation helpers (paths updated to iteration6) --------------------------
+_IMAGES_ROOT = Path(".research/iteration6/images")
 
 
 def _ensure_dir(p: Path):
@@ -43,7 +43,7 @@ def _ensure_dir(p: Path):
 
 
 def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
-    """Plot task accuracies and save the figure under `.research/iteration5/images/`.
+    """Plot task accuracies and save the figure under `.research/iteration6/images/`.
 
     Parameters
     ----------
@@ -114,3 +114,11 @@ def save_results_json(obj: Dict, path: str | Path):
     with open(p, "w") as f:
         json.dump(_to_jsonable(obj), f, indent=2)
     print(f"✓ saved {p}")
+
+
+# -----------------------------------------------------------------------------
+# Make discoverable as top-level as well as inside `src` ------------------------
+# -----------------------------------------------------------------------------
+import sys as _sys
+_sys.modules.setdefault("evaluate", _sys.modules[__name__])
+_sys.modules.setdefault("src.evaluate", _sys.modules[__name__])

@@ -30,10 +30,10 @@ except ImportError:
     # -------------------------------------------------------------------------
     # Fallback strategy: import from loose files sitting at the repo root.
     # -------------------------------------------------------------------------
+    # ---- train ----------------------------------------------------------------
     try:
         from train import train_experiment, create_resource_shock_trace  # type: ignore
     except ImportError:
-        # Dynamically load train_py
         _train_candidates = [_pkg_root / "train_py.py", _repo_root / "train_py.py"]
         for _cand in _train_candidates:
             if _cand.exists():
@@ -47,13 +47,28 @@ except ImportError:
                 break
         else:
             raise
-
-    from evaluate import generate_comparison_table, visualize_results, save_results_json  # type: ignore
-
+    # ---- evaluate -------------------------------------------------------------
+    try:
+        from evaluate import generate_comparison_table, visualize_results, save_results_json  # type: ignore
+    except ImportError:
+        _eval_candidates = [_pkg_root / "evaluate_py.py", _repo_root / "evaluate_py.py"]
+        for _cand in _eval_candidates:
+            if _cand.exists():
+                spec = importlib.util.spec_from_file_location("evaluate", _cand)
+                assert spec and spec.loader, f"Could not create spec for {_cand}"
+                _mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(_mod)  # type: ignore[arg-type]
+                sys.modules["evaluate"] = _mod
+                generate_comparison_table = _mod.generate_comparison_table  # type: ignore
+                visualize_results = _mod.visualize_results  # type: ignore
+                save_results_json = _mod.save_results_json  # type: ignore
+                break
+        else:
+            raise
+    # ---- preprocess -----------------------------------------------------------
     try:
         from preprocess_py import DataPreprocessor  # type: ignore
     except ImportError:
-        # Dynamically load the module from file.
         _preprocess_path_candidates = [
             _pkg_root / "preprocess_py.py",
             _repo_root / "preprocess_py.py",
@@ -74,10 +89,10 @@ except ImportError:
             )
 
 # -----------------------------------------------------------------------------
-# Paths (updated to iteration5 as mandated) ------------------------------------
+# Paths (updated to iteration6 as mandated) ------------------------------------
 CFG_DIR = _repo_root / "config"
-JSON_ROOT = Path(".research/iteration5")
-IMG_ROOT = Path(".research/iteration5/images")
+JSON_ROOT = Path(".research/iteration6")
+IMG_ROOT = Path(".research/iteration6/images")
 
 
 def _load_cfg(name: str):
