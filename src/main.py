@@ -17,7 +17,7 @@ _repo_root = _pkg_root.parent               # project root
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-# Try the standard relative imports first ------------------------------------------------
+# Try the standard relative imports first --------------------------------------
 try:
     from .train import train_experiment, create_resource_shock_trace  # type: ignore
     from .preprocess_py import DataPreprocessor  # type: ignore
@@ -28,14 +28,8 @@ try:
     )
 except ImportError:
     # -------------------------------------------------------------------------
-    # Fallback strategy: import from loose files sitting at the repo root.  For
-    # `preprocess_py` in particular the file may have been excluded from the
-    # installed wheel; we therefore attempt a manual import using its absolute
-    # path.  This guarantees that a *single* source of truth is loaded and we
-    # avoid silent divergence between the editable checkout and the installed
-    # package.
+    # Fallback strategy: import from loose files sitting at the repo root.
     # -------------------------------------------------------------------------
-
     from train import train_experiment, create_resource_shock_trace  # type: ignore
     from evaluate import generate_comparison_table, visualize_results, save_results_json  # type: ignore
 
@@ -44,8 +38,8 @@ except ImportError:
     except ImportError:
         # Dynamically load the module from file.
         _preprocess_path_candidates = [
-            _pkg_root / "preprocess_py.py",     # same directory as this file
-            _repo_root / "preprocess_py.py",    # project root
+            _pkg_root / "preprocess_py.py",
+            _repo_root / "preprocess_py.py",
         ]
         for _cand in _preprocess_path_candidates:
             if _cand.exists():
@@ -63,19 +57,14 @@ except ImportError:
             )
 
 # -----------------------------------------------------------------------------
-# Paths (updated to iteration3 as mandated) ------------------------------------
+# Paths (updated to iteration4 as mandated) ------------------------------------
 CFG_DIR = _repo_root / "config"
-JSON_ROOT = Path(".research/iteration3")
-IMG_ROOT = Path(".research/iteration3/images")
+JSON_ROOT = Path(".research/iteration4")
+IMG_ROOT = Path(".research/iteration4/images")
 
 
 def _load_cfg(name: str):
-    """Robust YAML loader.
-
-    It first looks under `config/` (the preferred location). If the file does
-    not exist it falls back to the repository root so that unit-tests that ship
-    a flat file layout still work.
-    """
+    """Robust YAML loader."""
     candidates = [CFG_DIR / name, _repo_root / name]
     for p in candidates:
         if p.exists():
