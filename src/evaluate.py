@@ -33,8 +33,8 @@ def evaluate_continual_learning(controller, test_loaders, cfg):
 
 
 # -----------------------------------------------------------------------------
-# Visualisation helpers (paths updated to iteration4) --------------------------
-_IMAGES_ROOT = Path(".research/iteration4/images")
+# Visualisation helpers (paths updated to iteration5) --------------------------
+_IMAGES_ROOT = Path(".research/iteration5/images")
 
 
 def _ensure_dir(p: Path):
@@ -43,7 +43,7 @@ def _ensure_dir(p: Path):
 
 
 def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
-    """Plot task accuracies and save the figure under `.research/iteration4/images/`.
+    """Plot task accuracies and save the figure under `.research/iteration5/images/`.
 
     Parameters
     ----------

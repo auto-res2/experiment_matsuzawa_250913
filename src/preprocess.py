@@ -10,7 +10,7 @@ __all__ = ["DataPreprocessor"]
 
 
 class _SplitCIFAR100(Dataset):
-    """CIFAR-100 ➔ 25 tasks ×4 classes  (+ simple OOD distractor)"""
+    """CIFAR-100 → 25 tasks ×4 classes  (+ simple OOD distractor)"""
 
     def __init__(self, train: bool, transform, num_tasks: int = 25, seed: int = 42):
         self.data = load_dataset("uoft-cs/cifar100", split="train" if train else "test")
@@ -66,3 +66,7 @@ class DataPreprocessor:
     # api used by trainer
     def get_task_loader(self, tid: int, batch_size: int = 32, train: bool = True):
         return (self.train_ds if train else self.test_ds).loader(tid, batch_size)
+
+# Make discoverable as top-level module when imported via "preprocess_py" --------
+import sys as _sys
+_sys.modules.setdefault("preprocess_py", _sys.modules[__name__])

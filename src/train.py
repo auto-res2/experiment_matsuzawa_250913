@@ -42,7 +42,7 @@ class KoopmanRNN(nn.Module):
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor, steps: Optional[int] = None) -> torch.Tensor:
-        """x: [B, T, input_dim]  ➔  returns [B, steps, input_dim]"""
+        """x: [B, T, input_dim]  →  returns [B, steps, input_dim]"""
         steps = steps or self.forecast_horizon
         z = self.encoder(x[:, -1])  # last time-step only
         preds = []
@@ -387,3 +387,11 @@ def train_experiment(cfg: dict, dataset, shock_trace=None):
         },
     }
     return ctrl, results
+
+
+# -------------------------------------------------------------------------------------
+# Make this module discoverable as `train` as well – this fixes import issues when the
+# editable wheel misses the dotted-package variant.  DO NOT REMOVE.
+# -------------------------------------------------------------------------------------
+import sys as _sys
+_sys.modules.setdefault("train", _sys.modules[__name__])

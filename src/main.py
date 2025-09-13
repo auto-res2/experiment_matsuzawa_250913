@@ -30,7 +30,24 @@ except ImportError:
     # -------------------------------------------------------------------------
     # Fallback strategy: import from loose files sitting at the repo root.
     # -------------------------------------------------------------------------
-    from train import train_experiment, create_resource_shock_trace  # type: ignore
+    try:
+        from train import train_experiment, create_resource_shock_trace  # type: ignore
+    except ImportError:
+        # Dynamically load train_py
+        _train_candidates = [_pkg_root / "train_py.py", _repo_root / "train_py.py"]
+        for _cand in _train_candidates:
+            if _cand.exists():
+                spec = importlib.util.spec_from_file_location("train", _cand)
+                assert spec and spec.loader, f"Could not create spec for {_cand}"
+                _mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(_mod)  # type: ignore[arg-type]
+                sys.modules["train"] = _mod
+                train_experiment = _mod.train_experiment  # type: ignore
+                create_resource_shock_trace = _mod.create_resource_shock_trace  # type: ignore
+                break
+        else:
+            raise
+
     from evaluate import generate_comparison_table, visualize_results, save_results_json  # type: ignore
 
     try:
@@ -57,10 +74,10 @@ except ImportError:
             )
 
 # -----------------------------------------------------------------------------
-# Paths (updated to iteration4 as mandated) ------------------------------------
+# Paths (updated to iteration5 as mandated) ------------------------------------
 CFG_DIR = _repo_root / "config"
-JSON_ROOT = Path(".research/iteration4")
-IMG_ROOT = Path(".research/iteration4/images")
+JSON_ROOT = Path(".research/iteration5")
+IMG_ROOT = Path(".research/iteration5/images")
 
 
 def _load_cfg(name: str):
