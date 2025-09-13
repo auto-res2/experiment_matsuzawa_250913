@@ -1,6 +1,6 @@
 """
 Entry-point orchestrating smoke-test & full-experiment modes.
-Updated to use iteration5 paths as required by the rubric.
+Updated to use iteration6 paths as required by the rubric.
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ from .train import (
 from .evaluate import evaluate_model, save_evaluation_results
 
 # -----------------------------------------------------------------------------
-# Globals (iteration-specific output folders) ---------------------------------
+# Globals (iteration-specific output folders) ----------------------------------
 # -----------------------------------------------------------------------------
 
-ITER_DIR = Path(".research/iteration5")
+ITER_DIR = Path(".research/iteration6")
 IMG_DIR = ITER_DIR / "images"
 
 

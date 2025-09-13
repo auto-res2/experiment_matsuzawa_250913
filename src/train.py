@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
-import numpy as sns
+import seaborn as sb  # Renamed alias to avoid rare name-collision with NumPy
 import numpy as np
 import torch
 import torch.nn as nn
@@ -26,7 +26,7 @@ from torch_geometric.utils import add_self_loops, degree
 
 # Publication-quality plotting defaults
 plt.style.use("seaborn-v0_8-paper")
-sns.set_palette("husl")
+sb.set_palette("husl")
 
 
 @dataclass
@@ -141,7 +141,7 @@ class CurvatureContrastiveAlignment(nn.Module):
 
     def forward(self, x_l: torch.Tensor, x_g: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:  # noqa: D401,E501
         row, col = edge_index
-        deg = degree(col, x_l.size(0), dtype=x_l.dtype)
+        deg = degree(col, x_l.size(0), dtype=x_l.dtype).to(x_l.device)
         curv_l = self._forman(edge_index, deg)
         curv_g = curv_l.clone()
         z_l = self.projector(curv_l.unsqueeze(-1).expand(-1, x_l.size(1)))
@@ -242,7 +242,7 @@ class GCNLayer(MessagePassing):
         edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
         x = self.lin(x)
         row, col = edge_index
-        deg = degree(col, x.size(0), dtype=x.dtype)
+        deg = degree(col, x.size(0), dtype=x.dtype).to(x.device)
         deg_inv_sqrt = deg.pow(-0.5)
         deg_inv_sqrt[torch.isinf(deg_inv_sqrt)] = 0
         norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
