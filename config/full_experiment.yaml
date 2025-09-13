@@ -1,0 +1,12 @@
+seed: 42
+run_experiment_1: true
+run_experiment_2: true
+run_experiment_3: true
+experiment_1:
+  datasets: ["ogbn-arxiv", "chameleon", "squirrel"]
+  num_clients: 5
+  rounds: 10
+  local_epochs: 2
+  learning_rate: 5e-4
+dp_epsilon: 4.0
+dp_delta: 1e-5
