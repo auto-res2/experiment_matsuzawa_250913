@@ -1,0 +1,33 @@
+warning: No `requires-python` value found in the workspace. Defaulting to `>=3.11`.
+/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/outdated/__init__.py:36: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import parse_version
+/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/torch/_weights_only_unpickler.py:549: UserWarning: Detected pickle protocol 4 in the checkpoint, which was not the default pickle protocol used by `torch.load` (2). The weights_only Unpickler might not support all instructions implemented by this protocol, please file an issue for adding support if you encounter this.
+  warnings.warn(
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 104, in <module>
+    main()
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 87, in main
+    smoke_metrics = _run_pipeline(smoke_cfg)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 45, in _run_pipeline
+    dataset = FederatedGraphDataset(ds_name, fed_cfg.num_clients)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/preprocess.py", line 31, in __init__
+    self.data = self._load()
+                ^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/preprocess.py", line 37, in _load
+    ds = NodePropPredDataset(name="ogbn-arxiv", root=str(self.root))
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/ogb/nodeproppred/dataset.py", line 63, in __init__
+    self.pre_process()
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/ogb/nodeproppred/dataset.py", line 70, in pre_process
+    loaded_dict = torch.load(pre_processed_file_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/torch/serialization.py", line 1529, in load
+    raise pickle.UnpicklingError(_get_wo_message(str(e))) from None
+_pickle.UnpicklingError: Weights only load failed. In PyTorch 2.6, we changed the default value of the `weights_only` argument in `torch.load` from `False` to `True`. Re-running `torch.load` with `weights_only` set to `False` will likely succeed, but it can result in arbitrary code execution. Do it only if you got the file from a trusted source.
+Please file an issue with the following so that we can make `weights_only=True` compatible with your use case: WeightsUnpickler error: Unsupported operand 149
+
+Check the documentation of torch.load to learn more about types accepted by default with weights_only https://pytorch.org/docs/stable/generated/torch.load.html.
