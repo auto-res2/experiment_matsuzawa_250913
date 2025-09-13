@@ -1,0 +1,5 @@
+warning: No `requires-python` value found in the workspace. Defaulting to `>=3.11`.
+/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/outdated/__init__.py:36: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import parse_version
+/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1731: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
