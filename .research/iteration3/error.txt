@@ -1,0 +1,90 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+Resolved 34 packages in 395ms
+   Building orchid-d4 @ file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913
+Downloading nvidia-cusparse-cu12 (274.9MiB)
+Downloading nvidia-cufile-cu12 (1.1MiB)
+Downloading nvidia-cuda-cupti-cu12 (9.8MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (84.0MiB)
+Downloading numpy (16.2MiB)
+Downloading triton (148.3MiB)
+Downloading nvidia-cusparselt-cu12 (273.9MiB)
+Downloading nvidia-nccl-cu12 (307.4MiB)
+Downloading nvidia-cublas-cu12 (566.8MiB)
+Downloading nvidia-cufft-cu12 (184.2MiB)
+Downloading nvidia-cusolver-cu12 (255.1MiB)
+Downloading torch (846.9MiB)
+Downloading sympy (6.0MiB)
+Downloading setuptools (1.1MiB)
+Downloading nvidia-nvjitlink-cu12 (37.4MiB)
+Downloading nvidia-curand-cu12 (60.7MiB)
+Downloading networkx (1.9MiB)
+Downloading nvidia-cudnn-cu12 (674.0MiB)
+ Downloading nvidia-cufile-cu12
+ Downloading setuptools
+ Downloading networkx
+      Built orchid-d4 @ file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913
+ Downloading nvidia-cuda-cupti-cu12
+ Downloading numpy
+ Downloading sympy
+ Downloading nvidia-nvjitlink-cu12
+ Downloading nvidia-curand-cu12
+ Downloading nvidia-cuda-nvrtc-cu12
+ Downloading triton
+ Downloading nvidia-cufft-cu12
+ Downloading nvidia-cusolver-cu12
+ Downloading nvidia-cusparse-cu12
+ Downloading nvidia-cusparselt-cu12
+ Downloading nvidia-nccl-cu12
+ Downloading nvidia-cublas-cu12
+ Downloading nvidia-cudnn-cu12
+ Downloading torch
+Prepared 28 packages in 1m 02s
+Installed 28 packages in 4.95s
+ + filelock==3.19.1
+ + fsspec==2025.9.0
+ + jinja2==3.1.6
+ + markupsafe==3.0.2
+ + mpmath==1.3.0
+ + networkx==3.5
+ + numpy==2.3.3
+ + nvidia-cublas-cu12==12.8.4.1
+ + nvidia-cuda-cupti-cu12==12.8.90
+ + nvidia-cuda-nvrtc-cu12==12.8.93
+ + nvidia-cuda-runtime-cu12==12.8.90
+ + nvidia-cudnn-cu12==9.10.2.21
+ + nvidia-cufft-cu12==11.3.3.83
+ + nvidia-cufile-cu12==1.13.1.3
+ + nvidia-curand-cu12==10.3.9.90
+ + nvidia-cusolver-cu12==11.7.3.90
+ + nvidia-cusparse-cu12==12.5.8.93
+ + nvidia-cusparselt-cu12==0.7.1
+ + nvidia-nccl-cu12==2.27.3
+ + nvidia-nvjitlink-cu12==12.8.93
+ + nvidia-nvtx-cu12==12.8.90
+ + orchid-d4==0.1.0 (from file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913)
+ + pyyaml==6.0.2
+ + setuptools==80.9.0
+ + sympy==1.14.0
+ + torch==2.8.0
+ + triton==3.4.0
+ + typing-extensions==4.15.0
+INFO:train:Initializing ORCHID-D4 training...
+INFO:train:Using device: cuda
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 106, in <module>
+    main()
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 82, in main
+    _, training_metrics = train_orchid(config, output_dir)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/train.py", line 507, in train_orchid
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config['training']['learning_rate'])
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/torch/optim/adamw.py", line 37, in __init__
+    super().__init__(
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/.venv/lib/python3.11/site-packages/torch/optim/adam.py", line 58, in __init__
+    if not 0.0 <= lr:
+           ^^^^^^^^^
+TypeError: '<=' not supported between instances of 'float' and 'str'
