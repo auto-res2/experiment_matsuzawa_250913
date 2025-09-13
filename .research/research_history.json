@@ -6,5 +6,82 @@
     "efficient discrete sampling",
     "quantized diffusion speedup",
     "diffusion scheduler optimization"
+  ],
+  "research_study_list": [
+    {
+      "title": "Faster Diffusion: Rethinking the Role of the Encoder for Diffusion Model Inference"
+    },
+    {
+      "title": "Accelerating Guided Diffusion Sampling with Splitting Numerical Methods"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "Fast Sampling via Discrete Non-Markov Diffusion Models with Predetermined Transition Time"
+    },
+    {
+      "title": "Diffusion Sampling with Momentum for Mitigating Divergence Artifacts"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "Reverse Transition Kernel: A Flexible Framework to Accelerate Diffusion Inference"
+    },
+    {
+      "title": "Fast Sampling of Diffusion Models with Exponential Integrator"
+    },
+    {
+      "title": "On Distillation of Guided Diffusion Models"
+    },
+    {
+      "title": "Denoising Diffusion Implicit Models"
+    },
+    {
+      "title": "Any-scale Balanced Samplers for Discrete Space"
+    },
+    {
+      "title": "Oops I Took A Gradient: Scalable Sampling for Discrete Distributions"
+    },
+    {
+      "title": "Oops I Took A Gradient: Scalable Sampling for Discrete Distributions"
+    },
+    {
+      "title": "Gradient-based Discrete Sampling with Automatic Cyclical Scheduling"
+    },
+    {
+      "title": "DISCS: A Benchmark for Discrete Sampling"
+    },
+    {
+      "title": "Temporal Dynamic Quantization for Diffusion Models"
+    },
+    {
+      "title": "Leveraging Early-Stage Robustness in Diffusion Models for Efficient and High-Quality Image Synthesis"
+    },
+    {
+      "title": "PTQD: Accurate Post-Training Quantization for Diffusion Models"
+    },
+    {
+      "title": "Post-Training Quantization on Diffusion Models"
+    },
+    {
+      "title": "Q-DM: An Efficient Low-bit Quantized Diffusion Model"
+    },
+    {
+      "title": "OMS-DPM: Optimizing the Model Schedule for Diffusion Probabilistic Models"
+    },
+    {
+      "title": "Align Your Steps: Optimizing Sampling Schedules in Diffusion Models"
+    },
+    {
+      "title": "Score-Optimal Diffusion Schedules"
+    },
+    {
+      "title": "On the Trajectory Regularity of ODE-based Diffusion Sampling"
+    },
+    {
+      "title": "Accelerating Diffusion Sampling with Optimized Time Steps"
+    }
   ]
 }
