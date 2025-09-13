@@ -1,5 +1,6 @@
-# Full experimental run (truncated for demo)
-output_dir: ".research/iteration8/outputs/full"
+# config/full_experiment.yaml
+output_dir: ".research/iteration9/outputs/full"
+seed: 42
 
 pka:
   num_pieces: 16
@@ -18,3 +19,5 @@ cf_noise:
 inference:
   num_steps: 32
 
+max_coco_samples: 300
+num_sessions: 100

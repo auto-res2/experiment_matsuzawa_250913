@@ -1,10 +1,8 @@
-"""Lightweight dataset preparation utilities (downloads stubbed if offline)."""
-
-from __future__ import annotations
+# src/preprocess.py
+"""Light-weight dataset preparation helpers."""
 
 import json
 import logging
-import random
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -15,58 +13,35 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
-# ----------------------------------------------------------------------------
-# Simple COCO caption subset (fallback to synthetic captions if offline)
-# ----------------------------------------------------------------------------
-
+# ------------------------------------------------------------------
+#                     SIMPLE CAPTIONS DATASET (COCO)
+# ------------------------------------------------------------------
 
 class COCOCaptionsDataset(Dataset):
-    """Tiny subset of COCO captions (≤300). Falls back to synthetic ones in CI."""
-
     def __init__(self, root: Path, max_samples: int = 300):
-        self.captions = []
-        ann_dir = root / "coco"
-        ann_dir.mkdir(parents=True, exist_ok=True)
+        self.root = root; self.max = max_samples; self.captions = []
+        self.dir = root / "coco"; self.dir.mkdir(parents=True, exist_ok=True)
+        self._load()
 
-        # Two possible final locations after extraction
-        local_path = ann_dir / "captions_val2014.json"
-        nested_path = ann_dir / "annotations" / "captions_val2014.json"
-
-        if not local_path.exists():
+    def _load(self):
+        p = self.dir / "captions_val2014.json"
+        if not p.exists():
             try:
-                logger.info("Downloading COCO captions … (small subset)")
-                url = "http://images.cocodataset.org/annotations/annotations_trainval2014.zip"
-                tmp = ann_dir / "ann.zip"
-                urllib.request.urlretrieve(url, tmp)
-                with zipfile.ZipFile(tmp) as zf:
-                    zf.extract("annotations/captions_val2014.json", ann_dir)
-                tmp.unlink()
-            except Exception as e:  # pragma: no cover – offline / network failure
-                logger.warning("COCO download failed (%s); falling back to synthetic captions", e)
-
-        # Post-download path resolution
-        if nested_path.exists() and not local_path.exists():
-            local_path = nested_path  # switch to actual extracted path
-
-        if local_path.exists():
-            try:
-                with open(local_path) as fp:
-                    data = json.load(fp)
-                for ann in data["annotations"][: max_samples]:
-                    self.captions.append(ann["caption"])
-            except Exception as e:  # pragma: no cover – corrupt JSON etc.
-                logger.warning("Failed to parse COCO captions (%s); using synthetic", e)
-                self.captions = []
-
-        # Fallback if anything above did not populate captions
+                u = "http://images.cocodataset.org/annotations/annotations_trainval2014.zip"
+                z = self.dir / "ann.zip"; logger.info("Downloading COCO captions …")
+                urllib.request.urlretrieve(u, z)
+                with zipfile.ZipFile(z) as zz:
+                    zz.extract("annotations/captions_val2014.json", self.dir)
+                z.unlink(); p = self.dir / "annotations" / "captions_val2014.json"
+            except Exception as e:
+                logger.warning(f"COCO download failed: {e}")
+        if p.exists():
+            data = json.load(open(p))
+            self.captions = [a["caption"] for a in data["annotations"][: self.max]]
         if not self.captions:
-            self.captions = [f"A synthetic caption {i}" for i in range(max_samples)]
-
-        self.captions = self.captions[:max_samples]
-
-    # ------------------------- PyTorch Dataset API ---------------------------
+            self.captions = [f"synthetic caption {i}" for i in range(self.max)]
+        logger.info(f"Loaded {len(self.captions)} captions")
 
     def __len__(self):
         return len(self.captions)
@@ -75,17 +50,15 @@ class COCOCaptionsDataset(Dataset):
         return {"caption": self.captions[idx]}
 
 
-# ----------------------------------------------------------------------------
-# Public helpers for main
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------
+#                  DATASET COLLECTION + DATALOADERS
+# ------------------------------------------------------------------
+
+def prepare_datasets(cfg: Dict):
+    root = Path("data"); root.mkdir(exist_ok=True)
+    ds = {"coco": COCOCaptionsDataset(root, cfg.get("max_coco_samples", 300))}
+    return ds
 
 
-def prepare_datasets(_cfg: Dict):  # noqa: D401
-    data_root = Path("data")
-    data_root.mkdir(exist_ok=True)
-    coco = COCOCaptionsDataset(data_root)
-    return {"coco": coco}
-
-
-def create_dataloaders(ds: Dict[str, Dataset], bs: int = 4):  # noqa: D401
-    return {k: DataLoader(v, batch_size=bs, shuffle=True, num_workers=0) for k, v in ds.items()}
+def create_dataloaders(datasets: Dict[str, Dataset], batch_size: int = 4):
+    return {k: DataLoader(v, batch_size=batch_size, shuffle=True) for k, v in datasets.items()}

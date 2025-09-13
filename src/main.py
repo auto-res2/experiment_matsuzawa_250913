@@ -1,6 +1,5 @@
-"""Command-line runner orchestrating smoke / full experiment."""
-
-from __future__ import annotations
+# src/main.py
+"""Command-line entry for ORCHID-D⁴ experiments."""
 
 import argparse
 import json
@@ -18,76 +17,68 @@ from .evaluate import evaluate
 from .preprocess import prepare_datasets
 from .train import train_orchid
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s | %(message)s")
+logger = logging.getLogger("orchid-main")
 
 CONFIG_DIR = Path("config")
-RESULTS_DIR = Path(".research/iteration8")
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR = Path(".research/iteration9"); RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# -----------------------------------------------------------------------------
-# util
-# -----------------------------------------------------------------------------
 
-def _load_cfg(p: Path) -> Dict[str, Any]:
+def load_cfg(p: Path) -> Dict[str, Any]:
     if not p.exists():
-        logger.error("Config not found: %s", p)
-        sys.exit(1)
-    return yaml.safe_load(p.read_text())
+        logger.error(f"Config not found: {p}"); sys.exit(1)
+    return yaml.safe_load(open(p))
 
 
-# -----------------------------------------------------------------------------
-# main experiment routine
-# -----------------------------------------------------------------------------
+def run(cfg: Dict[str, Any], tag: str):
+    seed = cfg.get("seed", 42)
+    torch.manual_seed(seed); np.random.seed(seed)
+    out_dir = Path(cfg["output_dir"]); out_dir.mkdir(parents=True, exist_ok=True)
 
-def _run(cfg: Dict[str, Any], tag: str):
-    torch.manual_seed(42)
-    np.random.seed(42)
+    logger.info("Preparing datasets …")
+    _ = prepare_datasets(cfg)  # placeholder, not used further in stub simulation
 
-    out_dir = Path(cfg["output_dir"])
-    out_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("Running simulator …")
+    _, metrics = train_orchid(cfg, out_dir)
 
-    # prepare (unused heavy datasets skipped in smoke)
-    prepare_datasets(cfg)
-
-    # simulate / train
-    model, metrics = train_orchid(cfg, out_dir)
-
-    # evaluation (produces images & JSON)
     res_path = out_dir / "orchid_d4_results.json"
-    ev = evaluate(res_path) if res_path.exists() else {}
+    eval_res = evaluate(res_path) if res_path.exists() else {}
 
-    # aggregate & persist
-    payload = {
-        "config": cfg,
+    final = {
+        "cfg": cfg,
         "metrics": metrics,
-        "evaluation": ev,
-        "timestamp": time.time(),
+        "eval": eval_res,
+        "tag": tag,
+        "ts": time.time(),
     }
-    save = RESULTS_DIR / f"results_{tag}_{int(time.time())}.json"
-    save.write_text(json.dumps(payload, indent=2))
-    print(json.dumps(payload, indent=2))
+    fp = RESULTS_DIR / f"final_{tag}_{int(time.time())}.json"
+    json.dump(final, open(fp, "w"), indent=2)
+    print(f"Results saved → {fp}")
 
 
-# -----------------------------------------------------------------------------
-# CLI
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------
 
-def main():  # noqa: D401
-    ap = argparse.ArgumentParser("ORCHID-D⁴ runner")
-    g = ap.add_mutually_exclusive_group(required=True)
-    g.add_argument("--smoke-test", action="store_true")
-    g.add_argument("--full-experiment", action="store_true")
-    args = ap.parse_args()
 
-    cfg_path = CONFIG_DIR / ("smoke_test.yaml" if args.smoke_test else "full_experiment.yaml")
+def main():
+    p = argparse.ArgumentParser(description="Run ORCHID-D⁴ experiments")
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--smoke-test", action="store_true", help="run smoke test config")
+    g.add_argument("--full-experiment", action="store_true", help="run full experiment config")
+    p.add_argument("--seed", type=int, default=42)
+    args = p.parse_args()
+
+    cfg_file = "smoke_test.yaml" if args.smoke_test else "full_experiment.yaml"
     tag = "smoke" if args.smoke_test else "full"
-    cfg = _load_cfg(cfg_path)
-
+    cfg = load_cfg(CONFIG_DIR / cfg_file)
+    if args.seed != 42:
+        cfg["seed"] = args.seed
     try:
-        _run(cfg, tag)
-    except Exception as exc:  # pragma: no cover
-        logger.error("Experiment failed: %s", exc, exc_info=True)
+        run(cfg, tag)
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failure: {e}", exc_info=True)
         sys.exit(1)
 
 

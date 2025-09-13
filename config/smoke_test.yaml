@@ -1,5 +1,6 @@
-# Smoke test configuration – fast CI pass
-output_dir: ".research/iteration8/outputs/smoke"
+# config/smoke_test.yaml
+output_dir: ".research/iteration9/outputs/smoke"
+seed: 42
 
 pka:
   num_pieces: 4
@@ -18,3 +19,5 @@ cf_noise:
 inference:
   num_steps: 4
 
+max_coco_samples: 50
+num_sessions: 20
