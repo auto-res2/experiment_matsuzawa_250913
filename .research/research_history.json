@@ -6,5 +6,82 @@
     "efficient discrete diffusion sampling",
     "quantized diffusion acceleration",
     "discrete denoising diffusion optimization"
+  ],
+  "research_study_list": [
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Wavelet Diffusion Models Are Fast and Scalable Image Generators"
+    },
+    {
+      "title": "Leveraging Early-Stage Robustness in Diffusion Models for Efficient and High-Quality Image Synthesis"
+    },
+    {
+      "title": "Faster Diffusion: Rethinking the Role of the Encoder for Diffusion Model Inference"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "Reverse Transition Kernel: A Flexible Framework to Accelerate Diffusion Inference"
+    },
+    {
+      "title": "On Distillation of Guided Diffusion Models"
+    },
+    {
+      "title": "Fast Sampling of Diffusion Models with Exponential Integrator"
+    },
+    {
+      "title": "Denoising Diffusion Implicit Models"
+    },
+    {
+      "title": "A Continuous Time Framework for Discrete Denoising Models"
+    },
+    {
+      "title": "Formulating Discrete Probability Flow Through Optimal Transport"
+    },
+    {
+      "title": "Blackout Diffusion: Generative Diffusion Models in Discrete-State Spaces"
+    },
+    {
+      "title": "Fast Sampling via Discrete Non-Markov Diffusion Models with Predetermined Transition Time"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Post-Training Quantization on Diffusion Models"
+    },
+    {
+      "title": "PTQD: Accurate Post-Training Quantization for Diffusion Models"
+    },
+    {
+      "title": "Leveraging Early-Stage Robustness in Diffusion Models for Efficient and High-Quality Image Synthesis"
+    },
+    {
+      "title": "Temporal Dynamic Quantization for Diffusion Models"
+    },
+    {
+      "title": "Q-DM: An Efficient Low-bit Quantized Diffusion Model"
+    },
+    {
+      "title": "Diffusion Models as Plug-and-Play Priors"
+    },
+    {
+      "title": "A Continuous Time Framework for Discrete Denoising Models"
+    },
+    {
+      "title": "Blackout Diffusion: Generative Diffusion Models in Discrete-State Spaces"
+    },
+    {
+      "title": "Formulating Discrete Probability Flow Through Optimal Transport"
+    },
+    {
+      "title": "Denoising Diffusion Samplers"
+    }
   ]
 }
