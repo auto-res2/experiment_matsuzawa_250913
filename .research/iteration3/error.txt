@@ -1,0 +1,9 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+Resolved 80 packages in 500ms
+error: Distribution `dgl==2.2.1 @ registry+https://pypi.org/simple` can't be installed because it doesn't have a source distribution or wheel for the current platform
+
+hint: You're on Linux (`manylinux_2_35_x86_64`), but `dgl` (v2.2.1) only has wheels for the following platform: `win_amd64`; consider adding your platform to `tool.uv.required-environments` to ensure uv resolves to a version with compatible wheels
+error: Distribution `dgl==2.2.1 @ registry+https://pypi.org/simple` can't be installed because it doesn't have a source distribution or wheel for the current platform
+
+hint: You're on Linux (`manylinux_2_35_x86_64`), but `dgl` (v2.2.1) only has wheels for the following platform: `win_amd64`; consider adding your platform to `tool.uv.required-environments` to ensure uv resolves to a version with compatible wheels
