@@ -16,6 +16,9 @@ __all__ = [
     "save_results_json",
 ]
 
+# -----------------------------------------------------------------------------
+# Evaluation helpers
+# -----------------------------------------------------------------------------
 
 def evaluate_continual_learning(controller, test_loaders, cfg):
     res = {"task_accuracies": [], "forgetting_metrics": []}
@@ -23,17 +26,27 @@ def evaluate_continual_learning(controller, test_loaders, cfg):
         acc = controller.evaluate(loader)
         res["task_accuracies"].append(acc)
         if tid:
-            res["forgetting_metrics"].append(max(res["task_accuracies"][:-1]) - acc)
+            res["forgetting_metrics"].append(
+                max(res["task_accuracies"][:-1]) - acc
+            )
     return res
 
 
-# ---------------------------- visualisation helpers ----------------------------------
+# -----------------------------------------------------------------------------
+# Visualisation helpers
+# -----------------------------------------------------------------------------
+
+_IMAGES_ROOT = Path(".research/iteration2/images")
+
 
 def _ensure_dir(p: Path):
     p.mkdir(parents=True, exist_ok=True)
 
 
-def visualize_results(results: Dict, save_dir: str = "figures"):
+def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
+    """Plot task accuracies (and other metrics in the future) and save under
+    .research/iteration2/images/…
+    """
     out = Path(save_dir)
     _ensure_dir(out)
     plt.style.use("seaborn-v0_8-paper")
@@ -47,25 +60,33 @@ def visualize_results(results: Dict, save_dir: str = "figures"):
         plt.ylim(0, 1)
         plt.grid(alpha=0.3)
         plt.tight_layout()
-        plt.savefig(out / "task_acc.pdf", bbox_inches="tight", dpi=300)
+        fname = out / "task_acc.pdf"
+        plt.savefig(fname, bbox_inches="tight", dpi=300)
         plt.close()
+        print(f"✓ saved figure {fname}")
 
 
-# ---------------------------- tables & JSON -----------------------------------------
+# -----------------------------------------------------------------------------
+# Tables & JSON utils
+# -----------------------------------------------------------------------------
 
 def generate_comparison_table(methods: Dict[str, Dict]):
     rows = []
     for name, stats in methods.items():
-        rows.append({
-            "Method": name,
-            "Avg Acc": stats.get("avg_accuracy", 0) * 100,
-            "Worst Acc": stats.get("worst_accuracy", 0) * 100,
-            "Energy/Acc (mJ)": stats.get("avg_energy_per_correct", 0),
-            "SRAM Overshoots": stats.get("total_sram_overshoots", 0),
-        })
+        rows.append(
+            {
+                "Method": name,
+                "Avg Acc": stats.get("avg_accuracy", 0) * 100,
+                "Worst Acc": stats.get("worst_accuracy", 0) * 100,
+                "Energy/Acc (mJ)": stats.get("avg_energy_per_correct", 0),
+                "SRAM Overshoots": stats.get("total_sram_overshoots", 0),
+            }
+        )
     df = pd.DataFrame(rows).round(2).sort_values("Avg Acc", ascending=False)
     return df
 
+
+# ----- JSON serialisation -----------------------------------------------------
 
 def _to_jsonable(obj):
     if isinstance(obj, np.ndarray):
@@ -79,7 +100,9 @@ def _to_jsonable(obj):
     return obj
 
 
-def save_results_json(obj, path):
-    with open(path, "w") as f:
+def save_results_json(obj: Dict, path: str | Path):
+    p = Path(path)
+    _ensure_dir(p.parent)
+    with open(p, "w") as f:
         json.dump(_to_jsonable(obj), f, indent=2)
-    print(f"✓ saved {path}")
+    print(f"✓ saved {p}")
