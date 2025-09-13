@@ -1,0 +1,18 @@
+# ===== FULL EXPERIMENT CONFIG – publication figures (abbreviated) =====
+seed: 42
+
+exp1:
+  epochs: 20
+  batch_size: 128
+  datasets:
+    wear3_stream_rgb:
+      hf_name: cifar10  # placeholder – replace with real dataset spec for production run
+  ceml:
+    lr: 1e-3
+    prior_var: 1.0
+    k: 16
+  rtps:
+    window: 4   # ms
+    kick_threshold: 0.2
+
+# Additional experiments (exp2, exp3, …) can be added following same pattern.

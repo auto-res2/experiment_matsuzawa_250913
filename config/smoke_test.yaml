@@ -1,0 +1,17 @@
+# ===== SMOKE-TEST CONFIG – executes in <90 s, CPU-only =====
+seed: 0
+
+exp1:
+  epochs: 1
+  batch_size: 32
+  datasets:
+    wear3_stream_rgb:
+      hf_name: cifar10
+      split: train
+  ceml:
+    lr: 3e-4
+    prior_var: 1.0
+    k: 8
+  rtps:
+    window: 4
+    kick_threshold: 0.2
