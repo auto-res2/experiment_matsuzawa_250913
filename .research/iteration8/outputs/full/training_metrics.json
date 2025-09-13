@@ -1,0 +1,33 @@
+{
+  "experiment_1_sldo": {
+    "assignment_status": "optimal",
+    "median_latency_ms": 0.8000000000000071,
+    "total_kb_transmitted": 9.5,
+    "total_energy_j": 307.2000000000002,
+    "taqs_skip_ratio": 0.0,
+    "hrcs_compression": 0.9976806640625
+  },
+  "experiment_2_pka": {
+    "cold_ttff_ms": 420.55456161499023,
+    "pka_ttff_ms": 98.30197334289551,
+    "sfid_cold": 2.009962320327759,
+    "sfid_warm": 0.0,
+    "improvement_factor": 4.278190430094602,
+    "dict_size_kb": 102400.0
+  },
+  "experiment_3_fairness": {
+    "full_flush_rate": 0.0,
+    "cf_flush_rate": 0.0,
+    "full_flush_latency_ms": 220.0,
+    "cf_latency_ms": 40.0,
+    "privacy_mi": 0.0,
+    "fairness_kl": 0.004,
+    "flush_reduction": 0.0
+  },
+  "summary": {
+    "latency_reduction": "99.2%",
+    "bandwidth_reduction": "99.8%",
+    "pka_speedup": "4.3x",
+    "fairness_improvement": "0.0x"
+  }
+}

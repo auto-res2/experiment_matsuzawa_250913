@@ -1,0 +1,19 @@
+{
+  "exp1": {
+    "latency_drop": 0.9919999999999999,
+    "kb_drop": 0.9366666666666666,
+    "success": true
+  },
+  "exp2": {
+    "ttff_reduction": 0.7662563141262771,
+    "quality_ok": false
+  },
+  "exp3": {
+    "flush_reduction": 0.0,
+    "mi_ok": true,
+    "kl_ok": true
+  },
+  "stats": {
+    "wilcoxon_p": 1.862645149230957e-09
+  }
+}

@@ -1,0 +1,7 @@
+2025-09-13 16:29:45,481 - INFO - Downloading COCO captions … (small subset)
+2025-09-13 16:30:27,223 - INFO - Simulating ORCHID-D⁴ …
+/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/train.py:418: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:835.)
+  "sfid_warm": float(F.mse_loss(warm, z)),
+2025-09-13 16:30:27,816 - INFO - Saved results → .research/iteration8/outputs/full/orchid_d4_results.json
+2025-09-13 16:30:28,261 - INFO - Saved evaluation → .research/iteration8/evaluation_results_1757781028.json
