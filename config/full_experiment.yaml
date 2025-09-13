@@ -1,6 +1,6 @@
 experiment: "full"
 num_seeds: 3   # keep small for demonstration; adjust as needed
-save_dir: ".research/iteration1"
+save_dir: ".research/iteration2"
 
 exp1:
   datasets: [

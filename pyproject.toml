@@ -4,16 +4,7 @@ version = "0.1.0"
 description = "Refactored CuFSF experimental framework"
 requires-python = ">=3.9"
 
-[project.optional-dependencies]
-# No optional groups – keep section for extensibility
-
-[tool.setuptools.package-data]
-"" = ["*.yaml"]
-
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
+# Core runtime dependencies (kept minimal for faster installation)
 dependencies = [
   "torch>=1.9.0",
   "torch_geometric>=2.0.0",
@@ -23,5 +14,19 @@ dependencies = [
   "PyYAML>=5.4",
   "huggingface_hub>=0.14.0",
   "dgl>=0.9.0",
-  "numpy>=1.21.0"
+  "numpy>=1.21.0",
+  "networkx>=2.6.0"
 ]
+
+[project.optional-dependencies]
+# Empty placeholder kept for future extension
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

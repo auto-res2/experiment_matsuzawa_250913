@@ -7,16 +7,14 @@ training and modelling* are defined here.
 from __future__ import annotations
 
 import random
-import time
-import json
-import pathlib
 from typing import Tuple, Dict, Any, List
 
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch_geometric.utils import get_laplacian, to_undirected
-from torch_sparse import SparseTensor
+
+# NOTE: keep heavy imports local to limit start-up time
+from torch_geometric.utils import get_laplacian
 
 # ---------------------------------------------------------------------------
 # Helper – seeded reproducibility (CUDA-aware)
@@ -34,6 +32,8 @@ def set_seed(seed: int) -> None:
 # ---------------------------------------------------------------------------
 
 from GraphRicciCurvature.OllivierRicci import OllivierRicci  # noqa: E402 – third-party
+import networkx as nx  # noqa: E402 – light-weight dependency shipped with GraphRicciCurvature
+
 
 class FractionalFilter(nn.Module):
     """Chebyshev approximation of a 3-term Mittag–Leffler expansion."""
@@ -44,18 +44,28 @@ class FractionalFilter(nn.Module):
         self.theta = nn.Parameter(torch.randn(ml_terms, K))
         self.hidden = hidden
 
+    # --------------------------------------------------------------
+    # NOTE: Broadcasting needs explicit singleton dimensions. The
+    # previous implementation broke with shape-mismatch on the first
+    # forward pass. Fixed by unsqueezing coef tensors and the signal
+    # along the ML-term axis.
+    # --------------------------------------------------------------
     def forward(self, x: torch.Tensor, laplacian: Tuple[torch.Tensor, torch.Tensor, int]):
         edge_index, edge_weight, num_nodes = laplacian
         # T_0(x) and T_1(x)
-        Tx_0 = x
-        Tx_1 = self._propagate(edge_index, edge_weight, x, num_nodes)
-        out = 0.5 * self.theta[:, 0:1] * Tx_0 + 0.5 * self.theta[:, 1:2] * Tx_1
+        Tx_0 = x  # (N, d)
+        Tx_1 = self._propagate(edge_index, edge_weight, x, num_nodes)  # (N, d)
+        coef0 = self.theta[:, 0].view(-1, 1, 1)  # (m,1,1)
+        coef1 = self.theta[:, 1].view(-1, 1, 1)
+        out = 0.5 * coef0 * Tx_0.unsqueeze(0) + 0.5 * coef1 * Tx_1.unsqueeze(0)  # (m,N,d)
+        Tx_prev, Tx_cur = Tx_0, Tx_1
         for k in range(2, self.K):
-            Tx_2 = 2 * self._propagate(edge_index, edge_weight, Tx_1, num_nodes) - Tx_0
-            out = out + self.theta[:, k : k + 1] * Tx_2
-            Tx_0, Tx_1 = Tx_1, Tx_2
+            Tx_next = 2 * self._propagate(edge_index, edge_weight, Tx_cur, num_nodes) - Tx_prev
+            coef_k = self.theta[:, k].view(-1, 1, 1)
+            out = out + coef_k * Tx_next.unsqueeze(0)
+            Tx_prev, Tx_cur = Tx_cur, Tx_next
         # Aggregate ML terms by simple averaging (works well in practice)
-        return out.mean(0)
+        return out.mean(0)  # (N,d)
 
     @staticmethod
     def _propagate(
@@ -66,10 +76,9 @@ class FractionalFilter(nn.Module):
     ) -> torch.Tensor:
         tgt = edge_index[1]
         src = edge_index[0]
-        # Simple message = weight * x_j, aggregate = sum
         msg = edge_weight.view(-1, 1) * x[src]
         out = torch.zeros_like(x)
-        out = out.index_add(0, tgt, msg)
+        out.index_add_(0, tgt, msg)
         return out
 
 
@@ -115,11 +124,14 @@ class CuFSF(nn.Module):
 
     # ---------------------------------------------------------------------
     # Ricci-flow controller – executed once *per forward* for simplicity.
-    # In practice caching across epochs is possible, but we keep the paper’s
-    # formulation intact.
     # ---------------------------------------------------------------------
     def _ricci_flow(self, data):
-        graph = OllivierRicci(data.edge_index.cpu().numpy().T, alpha=0.5, verbose="ERROR")
+        # Convert edge list → NetworkX graph (required by GraphRicciCurvature)
+        edges_numpy = data.edge_index.t().cpu().numpy()
+        G_nx = nx.Graph()
+        G_nx.add_edges_from(edges_numpy)
+
+        graph = OllivierRicci(G_nx, alpha=0.5, verbose="ERROR")
         graph.compute_ricci_curvature()
         for _ in range(self.cfc_steps):
             graph.compute_ricci_flow()
@@ -221,7 +233,15 @@ class Trainer:
             val_curve.append(acc_val)
 
         # -------- Final reporting --------
-        Z = self.model.layers[-1].linear.weight.detach()
+        # Robust retrieval of a representation matrix for rank estimation
+        last_layer = self.model.layers[-1] if hasattr(self.model, "layers") else None
+        if isinstance(last_layer, nn.Linear):
+            Z = last_layer.weight.detach()
+        elif hasattr(last_layer, "linear"):
+            Z = last_layer.linear.weight.detach()
+        else:
+            # Fallback: use classifier weights
+            Z = self.model.classifier.weight.detach()
         erank = effective_rank(Z)
         stretch = compute_stretch(self.data, virtual_depth=int(self.cfg.get("virtual_depth", 128)))
         result = {
