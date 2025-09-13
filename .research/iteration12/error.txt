@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 167, in <module>
+    main()
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 160, in main
+    full()
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 138, in full
+    run_experiment_1(cfg)
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 71, in run_experiment_1
+    "avg_energy_per_correct": float(np.mean([s["avg_energy_per_correct"] for s in stats])),
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_250913/experiment_matsuzawa_250913/src/main.py", line 71, in <listcomp>
+    "avg_energy_per_correct": float(np.mean([s["avg_energy_per_correct"] for s in stats])),
+                                             ~^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'avg_energy_per_correct'
