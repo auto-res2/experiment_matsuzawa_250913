@@ -6,5 +6,82 @@
     "efficient diffusion inference",
     "fast discrete denoising",
     "diffusion sampling optimization"
+  ],
+  "research_study_list": [
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "Fast Sampling via Discrete Non-Markov Diffusion Models with Predetermined Transition Time"
+    },
+    {
+      "title": "gDDIM: Generalized denoising diffusion implicit models"
+    },
+    {
+      "title": "Blackout Diffusion: Generative Diffusion Models in Discrete-State Spaces"
+    },
+    {
+      "title": "Accelerating Convergence of Score-Based Diffusion Models, Provably"
+    },
+    {
+      "title": "Score-based Continuous-time Discrete Diffusion Models"
+    },
+    {
+      "title": "Discrete Modeling via Boundary Conditional Diffusion Processes"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "Fast Sampling via Discrete Non-Markov Diffusion Models with Predetermined Transition Time"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Reverse Transition Kernel: A Flexible Framework to Accelerate Diffusion Inference"
+    },
+    {
+      "title": "Training-Free Adaptive Diffusion with Bounded Difference Approximation Strategy"
+    },
+    {
+      "title": "Score Regularized Policy Optimization through Diffusion Behavior"
+    },
+    {
+      "title": "Diffusion Models as Plug-and-Play Priors"
+    },
+    {
+      "title": "On the Posterior Distribution in Denoising: Application to Uncertainty Quantification"
+    },
+    {
+      "title": "Learning Pseudo-Contractive Denoisers for Inverse Problems"
+    },
+    {
+      "title": "Diffusion Priors for Variational Likelihood Estimation and Image Denoising"
+    },
+    {
+      "title": "It Has Potential: Gradient-Driven Denoisers for Convergent Solutions to Inverse Problems"
+    },
+    {
+      "title": "Async-RED: A Provably Convergent Asynchronous Block Parallel Stochastic Method using Deep Denoising Priors"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Solving Diffusion ODEs with Optimal Boundary Conditions for Better Image Super-Resolution"
+    },
+    {
+      "title": "On Accelerating Diffusion-Based Sampling Processes via Improved Integration Approximation"
+    },
+    {
+      "title": "Score-Optimal Diffusion Schedules"
+    },
+    {
+      "title": "Improved off-policy training of diffusion samplers"
+    }
   ]
 }
