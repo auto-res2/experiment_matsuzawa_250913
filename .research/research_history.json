@@ -6,5 +6,82 @@
     "efficient diffusion model inference",
     "discrete denoising diffusion speedup",
     "discrete diffusion latency reduction"
+  ],
+  "research_study_list": [
+    {
+      "title": "Faster Diffusion: Rethinking the Role of the Encoder for Diffusion Model Inference"
+    },
+    {
+      "title": "Accelerating Guided Diffusion Sampling with Splitting Numerical Methods"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "Fast Sampling via Discrete Non-Markov Diffusion Models with Predetermined Transition Time"
+    },
+    {
+      "title": "Diffusion Sampling with Momentum for Mitigating Divergence Artifacts"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "Reverse Transition Kernel: A Flexible Framework to Accelerate Diffusion Inference"
+    },
+    {
+      "title": "Fast Sampling of Diffusion Models with Exponential Integrator"
+    },
+    {
+      "title": "On Distillation of Guided Diffusion Models"
+    },
+    {
+      "title": "Denoising Diffusion Implicit Models"
+    },
+    {
+      "title": "A Simple Early Exiting Framework for Accelerated Sampling in Diffusion Models"
+    },
+    {
+      "title": "Training-Free Adaptive Diffusion with Bounded Difference Approximation Strategy"
+    },
+    {
+      "title": "Post-Training Quantization on Diffusion Models"
+    },
+    {
+      "title": "Efficient Denoising Diffusion via Probabilistic Masking"
+    },
+    {
+      "title": "Cache Me if You Can: Accelerating Diffusion Models through Block Caching"
+    },
+    {
+      "title": "Fast Sampling via Discrete Non-Markov Diffusion Models with Predetermined Transition Time"
+    },
+    {
+      "title": "Training-Free Adaptive Diffusion with Bounded Difference Approximation Strategy"
+    },
+    {
+      "title": "Leveraging Early-Stage Robustness in Diffusion Models for Efficient and High-Quality Image Synthesis"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "A Continuous Time Framework for Discrete Denoising Models"
+    },
+    {
+      "title": "Self-Refining Diffusion Samplers: Enabling Parallelization via Parareal Iterations"
+    },
+    {
+      "title": "Faster Diffusion: Rethinking the Role of the Encoder for Diffusion Model Inference"
+    },
+    {
+      "title": "AsyncDiff: Parallelizing Diffusion Models by Asynchronous Denoising"
+    },
+    {
+      "title": "Multistep Distillation of Diffusion Models via Moment Matching"
+    },
+    {
+      "title": "Training-Free Adaptive Diffusion with Bounded Difference Approximation Strategy"
+    }
   ]
 }
