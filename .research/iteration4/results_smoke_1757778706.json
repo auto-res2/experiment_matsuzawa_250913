@@ -1,0 +1,10 @@
+{
+  "epochs": 1,
+  "batches_per_epoch": 2,
+  "learning_rate": 0.0001,
+  "epoch_losses": [
+    1.0139426798457885
+  ],
+  "final_loss": 1.0139426798457885,
+  "wall_clock_seconds": 0.0011
+}
