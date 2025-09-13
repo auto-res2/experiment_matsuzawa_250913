@@ -23,29 +23,50 @@ logger.setLevel(logging.INFO)
 
 
 class COCOCaptionsDataset(Dataset):
+    """Tiny subset of COCO captions (≤300). Falls back to synthetic ones in CI."""
+
     def __init__(self, root: Path, max_samples: int = 300):
         self.captions = []
         ann_dir = root / "coco"
         ann_dir.mkdir(parents=True, exist_ok=True)
-        j_path = ann_dir / "captions_val2014.json"
-        if not j_path.exists():
+
+        # Two possible final locations after extraction
+        local_path = ann_dir / "captions_val2014.json"
+        nested_path = ann_dir / "annotations" / "captions_val2014.json"
+
+        if not local_path.exists():
             try:
-                logger.info("Downloading COCO captions …")
+                logger.info("Downloading COCO captions … (small subset)")
                 url = "http://images.cocodataset.org/annotations/annotations_trainval2014.zip"
                 tmp = ann_dir / "ann.zip"
                 urllib.request.urlretrieve(url, tmp)
                 with zipfile.ZipFile(tmp) as zf:
                     zf.extract("annotations/captions_val2014.json", ann_dir)
                 tmp.unlink()
-            except Exception as e:  # pragma: no cover
-                logger.warning("COCO download failed (%s); generating synthetic captions", e)
-                self.captions = [f"A synthetic caption {i}" for i in range(max_samples)]
+            except Exception as e:  # pragma: no cover – offline / network failure
+                logger.warning("COCO download failed (%s); falling back to synthetic captions", e)
+
+        # Post-download path resolution
+        if nested_path.exists() and not local_path.exists():
+            local_path = nested_path  # switch to actual extracted path
+
+        if local_path.exists():
+            try:
+                with open(local_path) as fp:
+                    data = json.load(fp)
+                for ann in data["annotations"][: max_samples]:
+                    self.captions.append(ann["caption"])
+            except Exception as e:  # pragma: no cover – corrupt JSON etc.
+                logger.warning("Failed to parse COCO captions (%s); using synthetic", e)
+                self.captions = []
+
+        # Fallback if anything above did not populate captions
         if not self.captions:
-            with open(j_path) as fp:
-                data = json.load(fp)
-            for ann in data["annotations"][: max_samples]:
-                self.captions.append(ann["caption"])
+            self.captions = [f"A synthetic caption {i}" for i in range(max_samples)]
+
         self.captions = self.captions[:max_samples]
+
+    # ------------------------- PyTorch Dataset API ---------------------------
 
     def __len__(self):
         return len(self.captions)
@@ -60,7 +81,8 @@ class COCOCaptionsDataset(Dataset):
 
 
 def prepare_datasets(_cfg: Dict):  # noqa: D401
-    data_root = Path("data"); data_root.mkdir(exist_ok=True)
+    data_root = Path("data")
+    data_root.mkdir(exist_ok=True)
     coco = COCOCaptionsDataset(data_root)
     return {"coco": coco}
 

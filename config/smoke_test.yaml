@@ -1,5 +1,5 @@
 # Smoke test configuration – fast CI pass
-output_dir: ".research/iteration7/outputs/smoke"
+output_dir: ".research/iteration8/outputs/smoke"
 
 pka:
   num_pieces: 4

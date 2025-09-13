@@ -1,5 +1,5 @@
 # Full experimental run (truncated for demo)
-output_dir: ".research/iteration7/outputs/full"
+output_dir: ".research/iteration8/outputs/full"
 
 pka:
   num_pieces: 16

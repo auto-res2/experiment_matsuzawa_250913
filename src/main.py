@@ -22,9 +22,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 CONFIG_DIR = Path("config")
-RESULTS_DIR = Path(".research/iteration7")
+RESULTS_DIR = Path(".research/iteration8")
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
 
 # -----------------------------------------------------------------------------
 # util
@@ -32,7 +31,8 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 def _load_cfg(p: Path) -> Dict[str, Any]:
     if not p.exists():
-        logger.error("Config not found: %s", p); sys.exit(1)
+        logger.error("Config not found: %s", p)
+        sys.exit(1)
     return yaml.safe_load(p.read_text())
 
 
@@ -41,7 +41,9 @@ def _load_cfg(p: Path) -> Dict[str, Any]:
 # -----------------------------------------------------------------------------
 
 def _run(cfg: Dict[str, Any], tag: str):
-    torch.manual_seed(42); np.random.seed(42)
+    torch.manual_seed(42)
+    np.random.seed(42)
+
     out_dir = Path(cfg["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -51,7 +53,7 @@ def _run(cfg: Dict[str, Any], tag: str):
     # simulate / train
     model, metrics = train_orchid(cfg, out_dir)
 
-    # evaluation (produces images)
+    # evaluation (produces images & JSON)
     res_path = out_dir / "orchid_d4_results.json"
     ev = evaluate(res_path) if res_path.exists() else {}
 
