@@ -22,6 +22,7 @@ from scipy.stats import levy_stable
 from sklearn.metrics import accuracy_score, average_precision_score
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree
+from pathlib import Path
 
 # Publication-quality plotting defaults
 plt.style.use("seaborn-v0_8-paper")
@@ -76,7 +77,9 @@ class CountMinSketch:
         self.hash_seeds = torch.randint(0, 2 ** 32, (depth,))
 
     def _hash(self, item: torch.Tensor, seed: int) -> int:
-        item_hash = int(hashlib.md5(item.cpu().numpy().tobytes()).hexdigest(), 16)
+        """MD5-based hash of the tensor bytes with an additional 32-bit seed."""
+        # Detach to avoid autograd issues, then move to CPU before converting to NumPy
+        item_hash = int(hashlib.md5(item.detach().cpu().numpy().tobytes()).hexdigest(), 16)
         return (item_hash + seed) % self.width
 
     def update(self, item: torch.Tensor, count: float = 1.0):
@@ -138,7 +141,7 @@ class CurvatureContrastiveAlignment(nn.Module):
         curv = 4 - deg[row] - deg[col]
         return curv
 
-    def forward(self, x_l: torch.Tensor, x_g: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+    def forward(self, x_l: torch.Tensor, x_g: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:  # noqa: D401,E501
         row, col = edge_index
         deg = degree(col, x_l.size(0), dtype=x_l.dtype, device=x_l.device)
         curv_l = self._forman(edge_index, deg)
@@ -276,11 +279,9 @@ class FedC3PO(nn.Module):
             h = F.dropout(h, p=0.1, training=self.training)
         return self.output_proj(h)
 
-    # M6 – Shapley-Curv (unchanged, truncated for brevity)
+    # M6 – Shapley-Curv (placeholder for brevity)
     def compute_shapley_curvature(self, x: torch.Tensor, edge_index: torch.Tensor) -> Dict[int, float]:  # noqa: D401,E501
-        shap_vals: Dict[int, float] = {}
-        # Kept minimal for production speed; full implementation in original script.
-        return shap_vals
+        return {}
 
 
 class FederatedClient:
@@ -399,12 +400,14 @@ def _clean(obj):
 
 
 def save_training_results(results: Dict, path: str):
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(_clean(results), f, indent=2)
     print(f"Training results saved → {path}")
 
 
 def plot_training_curves(metrics: Dict, save_path: str):
+    Path(save_path).parent.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(metrics["global_accuracy"], marker="o")
     ax.set_xlabel("Round")

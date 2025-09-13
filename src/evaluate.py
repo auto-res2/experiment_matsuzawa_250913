@@ -5,6 +5,7 @@ Evaluation utilities for FedC3PO – performance, calibration, fairness & curvat
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
@@ -85,6 +86,7 @@ def evaluate_model(model, loader, cfg, device="cuda") -> Tuple[Dict, Tensor, Ten
 
 
 def save_evaluation_results(res: Dict, path: str):
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(res, f, indent=2)
     print(f"Evaluation results saved → {path}")
@@ -97,6 +99,7 @@ def plot_confusion_matrix(lab: Tensor, pred: Tensor, path: str, class_names: Opt
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.tight_layout()
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(path, dpi=300)
     print(f"Confusion matrix saved → {path}")
     plt.close()

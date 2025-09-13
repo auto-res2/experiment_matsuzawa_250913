@@ -33,7 +33,11 @@ def _load_yaml(path: str):
 
 def _run_pipeline(cfg: dict):
     ds_name = cfg["experiment_1"]["datasets"][0]
-    fed_cfg = FedC3POConfig(num_clients=cfg["experiment_1"]["num_clients"], rounds=cfg["experiment_1"]["rounds"], local_epochs=cfg["experiment_1"]["local_epochs"])
+    fed_cfg = FedC3POConfig(
+        num_clients=cfg["experiment_1"]["num_clients"],
+        rounds=cfg["experiment_1"]["rounds"],
+        local_epochs=cfg["experiment_1"]["local_epochs"],
+    )
     dataset = FederatedGraphDataset(ds_name, fed_cfg.num_clients)
     n_feat = dataset.data.x.size(1)
     n_cls = int(dataset.data.y.max().item() + 1)
@@ -45,10 +49,10 @@ def _run_pipeline(cfg: dict):
     ]
     test_loader = dataset.get_test_loader()
     metrics = train_federated(fed_cfg, clients, server, test_loader)
-    save_training_results(metrics, ".research/iteration1/exp_smoke_train.json")
-    plot_training_curves(metrics, ".research/iteration1/images/smoke_curves.png")
+    save_training_results(metrics, ".research/iteration2/exp_smoke_train.json")
+    plot_training_curves(metrics, ".research/iteration2/images/smoke_curves.png")
     eval_metrics, _, _ = evaluate_model(server.model, test_loader, fed_cfg)
-    save_evaluation_results(eval_metrics, ".research/iteration1/exp_smoke_eval.json")
+    save_evaluation_results(eval_metrics, ".research/iteration2/exp_smoke_eval.json")
     return eval_metrics
 
 
@@ -58,8 +62,8 @@ def main():
     parser.add_argument("--full-experiment", action="store_true", help="run full experiment (will first run smoke-test)")
     args = parser.parse_args()
 
-    Path(".research/iteration1/images").mkdir(parents=True, exist_ok=True)
-    Path(".research/iteration1").mkdir(parents=True, exist_ok=True)
+    Path(".research/iteration2/images").mkdir(parents=True, exist_ok=True)
+    Path(".research/iteration2").mkdir(parents=True, exist_ok=True)
 
     if not (args.smoke_test or args.full_experiment):
         print("Specify --smoke-test or --full-experiment")
