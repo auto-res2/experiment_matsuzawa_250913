@@ -1,0 +1,7 @@
+experiment: "smoke"
+seed: 0
+save_dir: ".research/iteration1"
+# ---- experiment 1 ----
+epochs: 5
+datasets: ["synthetic_ring_L4"]
+models: ["cufsf"]

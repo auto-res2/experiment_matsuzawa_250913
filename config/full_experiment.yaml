@@ -1,0 +1,14 @@
+experiment: "full"
+num_seeds: 3   # keep small for demonstration; adjust as needed
+save_dir: ".research/iteration1"
+
+exp1:
+  datasets: [
+    "synthetic_ring_L4",
+    "synthetic_ring_L8",
+    "chameleon",
+    "squirrel"
+  ]
+  epochs: 250
+  virtual_depth: 128
+  models: ["cufsf", "cufsf_no_cfc", "gcn2"]
