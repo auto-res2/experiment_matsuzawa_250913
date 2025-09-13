@@ -6,5 +6,82 @@
     "memory-efficient rehearsal",
     "continual learning parameter compression",
     "continual learning pruning quantization"
+  ],
+  "research_study_list": [
+    {
+      "title": "Contextual Transformation Networks for Online Continual Learning"
+    },
+    {
+      "title": "SparCL: Sparse Continual Learning on the Edge"
+    },
+    {
+      "title": "Computationally Budgeted Continual Learning: What Does Matter?"
+    },
+    {
+      "title": "Continual Learning in Low-rank Orthogonal Subspaces"
+    },
+    {
+      "title": "MECTA: Memory-Economic Continual Test-Time Model Adaptation"
+    },
+    {
+      "title": "Improved Schemes for Episodic Memory-based Lifelong Learning"
+    },
+    {
+      "title": "Long Live the Lottery: The Existence of Winning Tickets in Lifelong Learning"
+    },
+    {
+      "title": "GAN Memory with No Forgetting"
+    },
+    {
+      "title": "Navigating Memory Construction by Global Pseudo-Task Simulation for Continual Learning"
+    },
+    {
+      "title": "An Empirical Investigation of the Role of Pre-training in Lifelong Learning"
+    },
+    {
+      "title": "Learning to Rehearse in Long Sequence Memorization"
+    },
+    {
+      "title": "A simple but strong baseline for online continual learning: Repeated Augmented Rehearsal"
+    },
+    {
+      "title": "Policy Rehearsing: Training Generalizable Policies for Reinforcement Learning"
+    },
+    {
+      "title": "Graph-Based Continual Learning"
+    },
+    {
+      "title": "Remember the Past: Distilling Datasets into Addressable Memories for Neural Networks"
+    },
+    {
+      "title": "Online Learned Continual Compression with Adaptive Quantization Modules"
+    },
+    {
+      "title": "SparCL: Sparse Continual Learning on the Edge"
+    },
+    {
+      "title": "Forget-free Continual Learning with Winning Subnetworks"
+    },
+    {
+      "title": "Forget-free Continual Learning with Winning Subnetworks"
+    },
+    {
+      "title": "Scalable and Order-robust Continual Learning with Additive Parameter Decomposition"
+    },
+    {
+      "title": "Online Learned Continual Compression with Adaptive Quantization Modules"
+    },
+    {
+      "title": "Uncertainty-guided Continual Learning with Bayesian Neural Networks"
+    },
+    {
+      "title": "Pruning vs Quantization: Which is Better?"
+    },
+    {
+      "title": "Vector Quantization Prompting for Continual Learning"
+    },
+    {
+      "title": "SparCL: Sparse Continual Learning on the Edge"
+    }
   ]
 }
