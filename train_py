@@ -27,7 +27,6 @@ __all__ = [
     "train_model",
 ]
 
-
 # ---------------------------------------------------------------------
 #  Low-level helpers
 # ---------------------------------------------------------------------
@@ -62,8 +61,14 @@ class CurvatureStateSpaceForecaster(nn.Module):
             nn.Dropout(0.1),
             nn.Linear(128, latent_dim * koopman_order),
         )
-        self.koopman = nn.Linear(latent_dim * koopman_order, latent_dim * koopman_order, bias=False)
-        self.decoder_mean = nn.Sequential(nn.Linear(latent_dim * koopman_order, 128), nn.ReLU(), nn.Linear(128, 1))
+        self.koopman = nn.Linear(
+            latent_dim * koopman_order, latent_dim * koopman_order, bias=False
+        )
+        self.decoder_mean = nn.Sequential(
+            nn.Linear(latent_dim * koopman_order, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1),
+        )
         self.decoder_var = nn.Sequential(
             nn.Linear(latent_dim * koopman_order, 128),
             nn.ReLU(),
@@ -97,7 +102,9 @@ class SoftHyperbolicReweighting(nn.Module):
 
     def __init__(self, beta_init: float = 4.0, learnable: bool = True) -> None:
         super().__init__()
-        self.beta = nn.Parameter(torch.tensor(beta_init)) if learnable else torch.tensor(beta_init)
+        self.beta = (
+            nn.Parameter(torch.tensor(beta_init)) if learnable else torch.tensor(beta_init)
+        )
 
     def forward(self, curvature: torch.Tensor) -> torch.Tensor:  # [E]
         return 1.0 / (1.0 + torch.exp(self.beta * (-curvature)))
@@ -166,13 +173,18 @@ class ProphetCurbGNN(nn.Module):
         if edge_curv is not None:
             # Build dummy 64-d features [E, 64] – first dim = κ, rest = noise
             edge_feat = torch.cat(
-                [edge_curv.unsqueeze(-1), torch.randn(edge_curv.size(0), 63, device=edge_curv.device)],
+                [
+                    edge_curv.unsqueeze(-1),
+                    torch.randn(edge_curv.size(0), 63, device=edge_curv.device),
+                ],
                 dim=-1,
             )
             mu, var = self.cssf(edge_feat, steps=5)
             curv_now = mu[:, 0]
             edge_weight = self.shr(curv_now)
-            metrics.update(predicted_curvature=mu, curvature_variance=var, edge_weights=edge_weight)
+            metrics.update(
+                predicted_curvature=mu, curvature_variance=var, edge_weights=edge_weight
+            )
 
         h = self.prop(h, edge_index, edge_weight=edge_weight)
         out = self.lin2(h)
@@ -183,14 +195,14 @@ class ProphetCurbGNN(nn.Module):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _effective_rank(mat: torch.Tensor) -> float:
+    def _effective_rank(mat: torch.Tensor) -> float:  # pragma: no cover
         if mat.size(0) < 2:
             return 1.0
         try:
             _, s, _ = torch.svd(mat)
             s = s / (s.sum() + 1e-10)
             return torch.exp(-(s * torch.log(s + 1e-10)).sum()).item()
-        except Exception:  # pragma: no cover – rare SVD failures
+        except Exception:
             return float(mat.size(1))
 
 
@@ -202,11 +214,17 @@ def _train_epoch(model: nn.Module, data, optimiser, criterion, device: torch.dev
     model.train()
     data = data.to(device)
     optimiser.zero_grad()
-    out, metrics = model(data.x, data.edge_index, getattr(data, "edge_attr", None), True)
+    out, metrics = model(
+        data.x, data.edge_index, getattr(data, "edge_attr", None), True
+    )
     loss_task = criterion(out[data.train_mask], data.y[data.train_mask])
     loss_total = loss_task
     if "predicted_curvature" in metrics and hasattr(data, "future_curvature"):
-        loss_curv = model.cssf.nll_loss(metrics["predicted_curvature"], metrics["curvature_variance"], data.future_curvature)
+        loss_curv = model.cssf.nll_loss(
+            metrics["predicted_curvature"],
+            metrics["curvature_variance"],
+            data.future_curvature,
+        )
         loss_total = loss_total + 0.1 * loss_curv
     loss_total.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -252,7 +270,9 @@ def train_model(config: Dict, data, device: torch.device, save_dir: Path) -> Dic
         lr=config["training"]["learning_rate"],
         weight_decay=config["training"]["weight_decay"],
     )
-    scheduler = CosineAnnealingLR(optimiser, T_max=config["training"]["epochs"], eta_min=1e-6)
+    scheduler = CosineAnnealingLR(
+        optimiser, T_max=config["training"]["epochs"], eta_min=1e-6
+    )
     criterion = nn.CrossEntropyLoss()
 
     history: Dict[str, list] = {k: [] for k in [
@@ -317,14 +337,18 @@ def train_model(config: Dict, data, device: torch.device, save_dir: Path) -> Dic
     # ------------------------------------------------------------------
 
     test_metrics = _eval(model, data, criterion, device, "test_mask")
-    results = {"history": history, "test_metrics": test_metrics, "best_val_f1": best_f1}
+    results = {
+        "history": history,
+        "test_metrics": test_metrics,
+        "best_val_f1": best_f1,
+    }
 
     # Save inside the experiment-specific folder (for backwards compatibility)
     with open(save_dir / "training_results.json", "w") as fp:
         json.dump(results, fp, indent=2)
 
     # Mandatory global JSON dump for automated grading
-    global_json_dir = Path(".research/iteration2")
+    global_json_dir = Path(".research/iteration3")
     global_json_dir.mkdir(parents=True, exist_ok=True)
     global_json_path = global_json_dir / f"{save_dir.name}_training_results_{int(time.time())}.json"
     with open(global_json_path, "w") as fp:

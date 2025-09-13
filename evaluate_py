@@ -11,15 +11,14 @@ import seaborn as sns
 
 plt.rcParams.update({"figure.dpi": 120, "savefig.bbox": "tight"})
 
-
 # ---------------------------------------------------------------------
 # Helper functions used by plotting utilities
 # ---------------------------------------------------------------------
 
 def _save(fig, path: Path):
-    """Save `fig` under the mandatory research path no matter what the caller passes."""
+    """Save a matplotlib figure under the mandated research path."""
 
-    images_root = Path(".research/iteration2/images")
+    images_root = Path(".research/iteration3/images")
     images_root.mkdir(parents=True, exist_ok=True)
 
     fig.tight_layout()
@@ -50,10 +49,10 @@ def plot_training_curves(history: Dict, out_path: Path):
 
 
 def main_evaluation(results_dir: Path, out_dir: Path):
-    """Loads `training_results.json` and emits basic plots + json summary.
+    """Load `training_results.json` and emit basic plots + JSON summary.
 
-    Besides the normal per-run folder, we *also* dump the summary into
-    `.research/iteration2/` as required by the evaluation harness.
+    Besides the per-run folder, we also dump a copy into
+    `.research/iteration3/` so that the evaluation harness can pick it up.
     """
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -73,7 +72,7 @@ def main_evaluation(results_dir: Path, out_dir: Path):
         json.dump(summary, fp, indent=2)
 
     # Mandatory global JSON dump
-    global_json_dir = Path(".research/iteration2")
+    global_json_dir = Path(".research/iteration3")
     global_json_dir.mkdir(parents=True, exist_ok=True)
     global_json_path = global_json_dir / f"evaluation_report_{int(time.time())}.json"
     with open(global_json_path, "w") as fp:

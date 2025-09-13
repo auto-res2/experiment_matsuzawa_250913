@@ -1,7 +1,7 @@
 # Smoke-test configuration – runs in <2 min on CPU
 experiment_name: prophet_curb_smoke
 seed: 42
-output_dir: ./.research/iteration2
+output_dir: ./.research/iteration3
 data_root: ./data
 
 datasets:
