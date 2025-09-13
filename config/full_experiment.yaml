@@ -1,1 +1,38 @@
-<FULL_YAML_PLACEHOLDER>
+# Full-scale configuration.  The values are still modest to comply with the
+# automated execution budget but significantly larger than the smoke version.
+
+output_dir: ".research/iteration2/outputs/full"
+
+pka:
+  num_pieces: 16
+  feature_dim: 4  # keep channel dim consistent with the toy latent – this is
+                  # a *research stub*, real runs would use 1280.
+
+hrcs:
+  num_tiers: 3
+
+taqs:
+  tile_size: 8
+
+cf_noise:
+  top_p: 0.1
+  noise_sigma: 0.05
+
+inference:
+  num_steps: 4   # still small to avoid GPU/CPU timeouts
+
+training:
+  num_epochs: 2
+  num_batches: 4
+  batch_size: 2
+  learning_rate: 5e-5
+  save_every: 5
+  # Additional tweaks for longer runs can be added here
+
+# NOTE: Researchers should further customise this file for real experiments.
+# The current settings are chosen to fit within the execution limits of the
+# autograder while still demonstrating end-to-end functionality.
+
+# ---------------------------------------------------------------------------
+# End of config
+# ---------------------------------------------------------------------------

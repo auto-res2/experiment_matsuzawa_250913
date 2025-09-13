@@ -1,1 +1,29 @@
-<SMOKE_YAML_PLACEHOLDER>
+# Lightweight configuration for CI / smoke-tests.
+# Keep all tensor sizes and iteration counts small so that the run finishes in
+# <30 seconds on a single CPU core.
+
+output_dir: ".research/iteration2/outputs/smoke"
+
+pka:
+  num_pieces: 4
+  feature_dim: 4       # matches the latent channel dimension in the toy run
+
+hrcs:
+  num_tiers: 2
+
+taqs:
+  tile_size: 8
+
+cf_noise:
+  top_p: 0.1
+  noise_sigma: 0.05
+
+inference:
+  num_steps: 2         # minimal steps for fast testing
+
+training:
+  num_epochs: 1
+  num_batches: 2
+  batch_size: 1
+  learning_rate: 1e-4
+  save_every: 10
