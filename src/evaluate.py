@@ -32,8 +32,8 @@ def evaluate_continual_learning(controller, test_loaders, cfg):
 
 
 # -----------------------------------------------------------------------------
-# Visualisation helpers  (paths updated to iteration8 as per spec) --------------
-_IMAGES_ROOT = Path(".research/iteration8/images")
+# Visualisation helpers  (paths updated to iteration9 as per spec) --------------
+_IMAGES_ROOT = Path(".research/iteration9/images")
 
 
 def _ensure_dir(p: Path):
@@ -42,12 +42,12 @@ def _ensure_dir(p: Path):
 
 
 def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
-    """Plot task accuracies and save the figure under `.research/iteration8/images/`.
+    """Plot task accuracies and save the figure under `.research/iteration9/images/`.
 
     Parameters
     ----------
     results : Dict
-        Must contain key `task_accuracies` that maps to a list of floats ∈ [0,1].
+        Must contain key `task_accuracies` that maps to a list of floats 8 [0,1].
     save_dir : str | Path, optional
         Directory in which to save the figure.  Defaults to `_IMAGES_ROOT` so that
         all experiments end up in the mandated location.
@@ -68,11 +68,11 @@ def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
         fname = out / "task_acc.pdf"
         plt.savefig(fname, bbox_inches="tight", dpi=300)
         plt.close()
-        print(f"✓ saved figure {fname}")
+        print(f" saved figure {fname}")
 
 
 # -----------------------------------------------------------------------------
-# Tables & JSON utils
+# Tables 6 JSON utils
 # -----------------------------------------------------------------------------
 
 def generate_comparison_table(methods: Dict[str, Dict]):
@@ -113,7 +113,7 @@ def save_results_json(obj: Dict, path: str | Path):
     _ensure_dir(p.parent)
     with open(p, "w") as f:
         json.dump(_to_jsonable(obj), f, indent=2)
-    print(f"✓ saved {p}")
+    print(f" saved {p}")
 
 
 # -----------------------------------------------------------------------------

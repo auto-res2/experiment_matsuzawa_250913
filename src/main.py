@@ -1,5 +1,6 @@
 import argparse
 import importlib.util
+import importlib.machinery
 from pathlib import Path
 import sys
 import yaml
@@ -18,9 +19,22 @@ if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
 # -----------------------------------------------------------------------------
-# First, try the _simplest_ import strategy: directly import the loose source
-# files that live at the repository root.  This avoids the relative `.` imports
-# that previously failed because the modules were not inside the `src/` package.
+# Dynamic loader helper able to handle files WITHOUT the `.py` suffix.
+# -----------------------------------------------------------------------------
+
+def _load_from_path(mod_name: str, path: Path):
+    """Utility to import *mod_name* from an arbitrary *path* (suffix optional)."""
+    loader = importlib.machinery.SourceFileLoader(mod_name, str(path))
+    spec = importlib.util.spec_from_loader(mod_name, loader)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not create import spec for {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)  # type: ignore[arg-type]
+    sys.modules[mod_name] = module
+    return module
+
+# -----------------------------------------------------------------------------
+# Attempt direct imports first; fallback to manual loading if that fails.
 # -----------------------------------------------------------------------------
 try:
     from train_py import train_experiment, create_resource_shock_trace  # type: ignore
@@ -31,31 +45,15 @@ try:
         save_results_json,
     )  # type: ignore
 except ImportError:
-    # -------------------------------------------------------------------------
-    # Fallback strategy: dynamically load modules from whichever location we
-    # can find them (this also supports the installed wheel where the loose
-    # source files may be missing).
-    # -------------------------------------------------------------------------
-
-    def _load_from_path(mod_name: str, path: Path):
-        """Utility to import *mod_name* from a concrete *path* at runtime."""
-        spec = importlib.util.spec_from_file_location(mod_name, path)
-        assert spec and spec.loader, f"Could not create spec for {path}"
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore[arg-type]
-        sys.modules[mod_name] = module
-        return module
-
     # ---- train ---------------------------------------------------------------
-    _train_candidates = [
+    for _cand in [
         _pkg_root / "train_py.py",
         _pkg_root / "train_py",
         _repo_root / "train_py.py",
         _repo_root / "train_py",
-    ]
-    for _cand in _train_candidates:
+    ]:
         if _cand.exists():
-            _mod = _load_from_path("train", _cand)
+            _mod = _load_from_path("train_py", _cand)
             train_experiment = _mod.train_experiment  # type: ignore
             create_resource_shock_trace = _mod.create_resource_shock_trace  # type: ignore
             break
@@ -63,15 +61,14 @@ except ImportError:
         raise ImportError("Could not locate train_py module.")
 
     # ---- evaluate ------------------------------------------------------------
-    _eval_candidates = [
+    for _cand in [
         _pkg_root / "evaluate_py.py",
         _pkg_root / "evaluate_py",
         _repo_root / "evaluate_py.py",
         _repo_root / "evaluate_py",
-    ]
-    for _cand in _eval_candidates:
+    ]:
         if _cand.exists():
-            _mod = _load_from_path("evaluate", _cand)
+            _mod = _load_from_path("evaluate_py", _cand)
             generate_comparison_table = _mod.generate_comparison_table  # type: ignore
             visualize_results = _mod.visualize_results  # type: ignore
             save_results_json = _mod.save_results_json  # type: ignore
@@ -80,13 +77,12 @@ except ImportError:
         raise ImportError("Could not locate evaluate_py module.")
 
     # ---- preprocess ----------------------------------------------------------
-    _pp_candidates = [
+    for _cand in [
         _pkg_root / "preprocess_py.py",
         _pkg_root / "preprocess_py",
         _repo_root / "preprocess_py.py",
         _repo_root / "preprocess_py",
-    ]
-    for _cand in _pp_candidates:
+    ]:
         if _cand.exists():
             _mod = _load_from_path("preprocess_py", _cand)
             DataPreprocessor = _mod.DataPreprocessor  # type: ignore
@@ -95,20 +91,19 @@ except ImportError:
         raise ImportError("Could not locate preprocess_py module.")
 
 # -----------------------------------------------------------------------------
-# Paths (updated to iteration8 as mandated) ------------------------------------
+# Paths (updated to iteration9 as mandated) ------------------------------------
 CFG_DIR = _repo_root / "config"
-JSON_ROOT = Path(".research/iteration8")
-IMG_ROOT = Path(".research/iteration8/images")
+JSON_ROOT = Path(".research/iteration9")
+IMG_ROOT = Path(".research/iteration9/images")
 
 
 def _load_cfg(name: str):
     """Robust YAML loader that searches `config/` first, then repo root."""
-    candidates = [CFG_DIR / name, _repo_root / name]
-    for p in candidates:
+    for p in [CFG_DIR / name, _repo_root / name]:
         if p.exists():
             with open(p, "r") as f:
                 return yaml.safe_load(f)
-    raise FileNotFoundError(f"Configuration file '{name}' not found in {candidates}")
+    raise FileNotFoundError(f"Configuration file '{name}' not found.")
 
 
 def _prepare_dirs():
