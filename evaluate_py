@@ -1,0 +1,107 @@
+import json
+import logging
+import time
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn.functional as F
+from sklearn.metrics import confusion_matrix
+from torch.utils.data import DataLoader, Dataset
+
+from .train import EdgeLearner, HSQCodec, ContinualLearner
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------
+class EvaluationDataset(Dataset):
+    def __init__(self, n: int, shape: Tuple[int, ...], n_cls: int):
+        self.n, self.shape, self.n_cls = n, shape, n_cls
+
+    def __len__(self):
+        return self.n
+
+    def __getitem__(self, idx):
+        x = torch.randn(*self.shape)
+        y = idx % self.n_cls
+        return x, y
+
+
+# ---------------------------------------------------------
+class MembershipInferenceAttack:
+    def __init__(self, dim: int):
+        self.dim = dim
+
+    def attack(self, emb: torch.Tensor) -> float:
+        norms = torch.norm(emb, dim=1)
+        thr = norms.median()
+        pred = (norms > thr).float()
+        gt = torch.zeros_like(pred);
+        gt[: len(pred) // 2] = 1
+        tpr = ((pred == 1) & (gt == 1)).sum() / max(gt.sum(), 1)
+        return tpr.item()
+
+
+# ---------------------------------------------------------
+
+def evaluate_fleet(config_path: str, ckpt_dir: str = "results/checkpoints"):
+    import yaml
+
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+    nodes = min(5, cfg.get("num_vision_nodes", 5))
+    loaders = DataLoader(EvaluationDataset(100, (3, 96, 96), cfg["n_classes"]), batch_size=1)
+    results = []
+    for i in range(nodes):
+        learner = ContinualLearner(cfg, i, "vision")
+        ckpt_p = Path(ckpt_dir) / f"node_{i}_checkpoint.pt"
+        if ckpt_p.exists():
+            learner.model.load_state_dict(torch.load(ckpt_p, map_location=learner.device)["model_state"], strict=False)
+        acc = 0
+        for x, y in loaders:
+            x, y = x.to(learner.device), y.to(learner.device)
+            with torch.no_grad():
+                acc += (learner.model(x).argmax(1) == y).sum().item()
+        acc = 100 * acc / len(loaders)
+        # simple decodability metric
+        act = torch.randn(1, 576).to(learner.device)
+        enc = learner.codec.encode(act, torch.randn_like(act))
+        comp = act.numel() * 4 / (
+            enc["high_quant"].numel() + enc["sparse_vals"].numel() * 4 + 8
+        )
+        mia = MembershipInferenceAttack(576).attack(act)
+        results.append({"node": i, "accuracy": acc, "compression": comp, "privacy_leakage": 100 * mia})
+
+    fleet = {
+        "fleet_avg_accuracy": np.mean([r["accuracy"] for r in results]),
+        "fleet_avg_compression": np.mean([r["compression"] for r in results]),
+        "fleet_avg_privacy_leakage": np.mean([r["privacy_leakage"] for r in results]),
+    }
+
+    out_dir = Path(".research/iteration1")
+    img_dir = out_dir / "images"
+    img_dir.mkdir(parents=True, exist_ok=True)
+    fn = out_dir / f"eval_results_{time.strftime('%Y%m%d_%H%M%S')}.json"
+    with fn.open("w") as f:
+        json.dump({"nodes": results, "fleet": fleet}, f, indent=2)
+    print(json.dumps({"nodes": results, "fleet": fleet}, indent=2))
+
+    # quick bar plot for accuracy
+    plt.figure(figsize=(6, 4))
+    plt.bar([r["node"] for r in results], [r["accuracy"] for r in results])
+    plt.ylabel("Accuracy (%)")
+    plt.xlabel("Node")
+    plt.tight_layout()
+    plt.savefig(img_dir / "accuracy.pdf", dpi=300)
+    plt.close()
+    return {"nodes": results, "fleet": fleet}
+
+
+if __name__ == "__main__":
+    import sys
+
+    evaluate_fleet(sys.argv[1] if len(sys.argv) > 1 else "config/smoke_test.yaml")

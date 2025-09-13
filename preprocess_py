@@ -1,0 +1,89 @@
+import json
+import logging
+import time
+from pathlib import Path
+from typing import Dict
+
+import cv2
+import numpy as np
+import torch
+import torch.nn.functional as F
+import torchaudio
+import torchvision.transforms as T
+from torch.utils.data import DataLoader, Dataset
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------
+class FleetEvalSynthetic(Dataset):
+    def __init__(self, node_id: int, n_samples: int = 1000):
+        self.node_id, self.n = node_id, n_samples
+        self.tr = T.Compose([
+            T.Resize((96, 96)),
+            T.ToTensor(),
+            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ])
+
+    def __len__(self):
+        return self.n
+
+    def __getitem__(self, idx):
+        img = np.random.randint(0, 255, (360, 640, 3), dtype=np.uint8)
+        img = self.tr(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        return {"frame": img, "label": idx % 12}
+
+
+class LibriSynthetic(Dataset):
+    def __init__(self, n: int = 1000):
+        self.n = n
+        self.kw = 10
+
+    def __len__(self):
+        return self.n
+
+    def __getitem__(self, idx):
+        sr, dur = 16000, 1.0
+        t = np.linspace(0, dur, int(sr * dur))
+        wave = np.sin(2 * np.pi * 440 * t) + 0.05 * np.random.randn(len(t))
+        mel = torchaudio.transforms.MelSpectrogram(sr, n_fft=512, hop_length=160, n_mels=64)(
+            torch.tensor(wave).unsqueeze(0)
+        )
+        return {"spectrogram": torch.log(mel + 1e-9), "label": idx % self.kw}
+
+
+# ---------------------------------------------------------
+
+def create_data_loaders(cfg: Dict):
+    bs, nw = cfg.get("batch_size", 4), cfg.get("num_workers", 2)
+    loaders = {}
+    for n in range(min(5, cfg.get("num_vision_nodes", 5))):
+        loaders[f"vision_{n}"] = DataLoader(FleetEvalSynthetic(n), batch_size=bs, shuffle=True, num_workers=nw)
+    loaders["audio"] = DataLoader(LibriSynthetic(), batch_size=bs, shuffle=True, num_workers=nw)
+    return loaders
+
+
+# ---------------------------------------------------------
+
+def prepare_all_data(cfg_path: str):
+    import yaml
+
+    with open(cfg_path) as f:
+        cfg = yaml.safe_load(f)
+    loaders = create_data_loaders(cfg)
+    stats = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "num_loaders": len(loaders),
+        "loader_names": list(loaders.keys()),
+    }
+    out_dir = Path(".research/iteration1")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with (out_dir / "data_stats.json").open("w") as f:
+        json.dump(stats, f, indent=2)
+    return loaders
+
+
+if __name__ == "__main__":
+    import sys
+
+    prepare_all_data(sys.argv[1] if len(sys.argv) > 1 else "config/smoke_test.yaml")

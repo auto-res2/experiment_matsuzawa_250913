@@ -1,0 +1,381 @@
+import logging
+import time
+import json
+from pathlib import Path
+from collections import deque
+from typing import Dict, List, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ----------------------------------------------------------------------------
+#                    CODEC, GOVERNOR, FIREWALL + ACCOUNTANT
+# ----------------------------------------------------------------------------
+class FisherSketch:
+    """Fisher-Information sketch extractor for CCD"""
+
+    def __init__(self, dim: int, sketch_dim: int = 32):
+        self.dim = dim
+        self.sketch_dim = sketch_dim
+        self.projection = torch.randn(dim, sketch_dim) / np.sqrt(sketch_dim)
+
+    def capture(self, grad: torch.Tensor) -> torch.Tensor:
+        grad_flat = grad.view(-1, self.dim)
+        fisher = torch.matmul(grad_flat.T, grad_flat) / grad_flat.size(0)
+        return torch.matmul(fisher, self.projection)
+
+
+class HSQCodec:
+    """Hybrid Sparse–Quantisation codec"""
+
+    def __init__(self, bit_budget: int = 4, sparse_ratio: float = 0.5):
+        self.bit_budget = bit_budget
+        self.sparse_ratio = sparse_ratio
+        self.importance_gate = nn.Sequential(
+            nn.Linear(1, 32), nn.ReLU(), nn.Linear(32, 1), nn.Sigmoid()
+        )
+
+    # ------------------------------------------------------------------
+    # Note: In production the codec is run on µ-controllers. Here we keep
+    #       a simplified torch implementation for clarity.
+    # ------------------------------------------------------------------
+    def encode(self, activations: torch.Tensor, gradients: torch.Tensor) -> Dict:
+        importance = self.importance_gate(gradients.abs().mean(dim=-1, keepdim=True))
+        high_mask = importance > 0.5
+        high_vals = activations[high_mask]
+        scale = high_vals.abs().max() / 3.5 if high_vals.numel() > 0 else 1.0
+        high_quant = torch.round(high_vals / scale).to(torch.int8)
+        low_mask = ~high_mask
+        low_vals = activations[low_mask]
+        threshold = (
+            torch.quantile(low_vals.abs(), self.sparse_ratio)
+            if low_vals.numel() > 0
+            else 0
+        )
+        sparse_mask = low_vals.abs() > threshold
+        sparse_vals = low_vals[sparse_mask]
+        sparse_indices = sparse_mask.nonzero(as_tuple=True)[0]
+        return {
+            "high_quant": high_quant,
+            "high_indices": high_mask.nonzero(as_tuple=True)[0],
+            "scale": scale,
+            "sparse_vals": sparse_vals,
+            "sparse_indices": sparse_indices,
+            "shape": activations.shape,
+        }
+
+    def decode(self, encoded: Dict) -> torch.Tensor:
+        out = torch.zeros(encoded["shape"])
+        if encoded["high_quant"].numel() > 0:
+            out[encoded["high_indices"]] = (
+                encoded["high_quant"].float() * encoded["scale"]
+            )
+        if encoded["sparse_vals"].numel() > 0:
+            out[encoded["sparse_indices"]] = encoded["sparse_vals"]
+        return out
+
+
+class BudgetPlasticityGovernor:
+    """Simplified convex allocator for (memory, energy, ε)"""
+
+    def __init__(self, memory_cap_mb: float, energy_cap_mah: float, privacy_epsilon: float):
+        self.memory_cap = memory_cap_mb * 1024 * 1024  # → bytes
+        self.energy_cap = energy_cap_mah
+        self.privacy_epsilon = privacy_epsilon
+
+    def solve(self, current_stats: Dict) -> Dict:
+        fr = current_stats.get("forgetting_rate", 0.1)
+        mem_frac = min(0.8, 1.0 / (1.0 + fr))
+        eng_frac = min(0.9, 1.0 / (1.0 + 0.5 * fr))
+        dvfs_level = int(3 * (1.0 - eng_frac))
+        return {
+            "memory_alloc": int(self.memory_cap * mem_frac),
+            "radio_power": 20 + int(30 * eng_frac),
+            "dvfs_level": dvfs_level,
+            "epsilon_budget": self.privacy_epsilon * (1.0 - 0.2 * fr),
+        }
+
+
+class PolicyFirewall:
+    """Tiny CNN that blocks GDPR-sensitive frames"""
+
+    def __init__(self, model_size_kb: int = 40):
+        self.classifier = nn.Sequential(
+            nn.Conv2d(3, 8, 3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(8, 16, 3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Linear(16, 3),
+        )
+        self.null_epsilon = 0.3
+
+    def check(self, frame: torch.Tensor) -> Tuple[bool, str]:
+        with torch.no_grad():
+            probs = F.softmax(self.classifier(frame.unsqueeze(0)), dim=-1)
+            pred = probs.argmax().item()
+        cats = ["safe", "face", "badge_screen"]
+        return pred > 0, cats[pred]
+
+    def apply_null_code(self, activations: torch.Tensor) -> torch.Tensor:
+        mean, var = activations.mean(), activations.var()
+        noise = torch.randn_like(activations) * np.sqrt(2 * np.log(1.25 / self.null_epsilon))
+        return torch.full_like(activations, mean) + noise * torch.sqrt(var)
+
+
+class FederatedPrivacyAccountant:
+    """Fleet-level Rényi accountant"""
+
+    def __init__(self, num_nodes: int, base_epsilon: float = 0.5):
+        self.base = base_epsilon
+        self.risk = [0.0] * num_nodes
+        self.eps = [base_epsilon] * num_nodes
+        self.n = num_nodes
+
+    def update_risk(self, node: int, sensitive_rate: float):
+        self.risk[node] = 0.9 * self.risk[node] + 0.1 * sensitive_rate
+
+    def redistribute(self) -> List[float]:
+        tot = sum(self.risk)
+        if tot == 0:
+            return self.eps
+        avg = tot / self.n
+        for i in range(self.n):
+            r = self.risk[i] / avg
+            if r > 1.5:
+                self.eps[i] = min(0.3, self.base * 0.6)
+            elif r < 0.5:
+                self.eps[i] = min(1.0, self.base * 1.2)
+            else:
+                self.eps[i] = self.base
+        return self.eps
+
+
+# ----------------------------------------------------------------------------
+#                                   MODELS
+# ----------------------------------------------------------------------------
+class EdgeLearner(nn.Module):
+    """MobileNetV3-Small backbone + learnable adapter"""
+
+    def __init__(self, n_classes: int = 12, adapter_dim: int = 64):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 16, 3, stride=2, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU6(inplace=True),
+            *self._inv_res_block(16, 24, 3, 2),
+            *self._inv_res_block(24, 24, 3, 1),
+            *self._inv_res_block(24, 40, 5, 2),
+            *self._inv_res_block(40, 40, 5, 1),
+            *self._inv_res_block(40, 48, 5, 1),
+            *self._inv_res_block(48, 96, 5, 2),
+            *self._inv_res_block(96, 96, 5, 1),
+            nn.Conv2d(96, 576, 1),
+            nn.BatchNorm2d(576),
+            nn.ReLU6(inplace=True),
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.adapter = nn.Linear(576, adapter_dim, bias=False)
+        self.classifier = nn.Sequential(
+            nn.Linear(adapter_dim, 1024),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(1024, n_classes),
+        )
+        for p in self.features.parameters():
+            p.requires_grad = False
+
+    def _inv_res_block(self, in_c, out_c, k, s):
+        mid = in_c * 6
+        return [
+            nn.Conv2d(in_c, mid, 1),
+            nn.BatchNorm2d(mid),
+            nn.ReLU6(inplace=True),
+            nn.Conv2d(mid, mid, k, stride=s, padding=k // 2, groups=mid),
+            nn.BatchNorm2d(mid),
+            nn.ReLU6(inplace=True),
+            nn.Conv2d(mid, out_c, 1),
+            nn.BatchNorm2d(out_c),
+        ]
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = torch.flatten(self.avgpool(x), 1)
+        x = self.adapter(x)
+        return self.classifier(x)
+
+
+class CRNNEdge(nn.Module):
+    def __init__(self, n_classes: int = 10):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, 3, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1)
+        self.pool = nn.MaxPool2d(2)
+        self.gru = nn.GRU(64 * 16, 128, batch_first=True)
+        self.fc = nn.Linear(128, n_classes)
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        b, c, h, w = x.shape
+        x = x.permute(0, 3, 1, 2).reshape(b, w, -1)
+        x, _ = self.gru(x)
+        return self.fc(x[:, -1, :])
+
+
+# ----------------------------------------------------------------------------
+#                             CONTINUAL LEARNER NODE
+# ----------------------------------------------------------------------------
+class ContinualLearner:
+    def __init__(self, cfg: Dict, node_id: int, node_type: str = "vision"):
+        self.cfg, self.node_id, self.node_type = cfg, node_id, node_type
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = (
+            EdgeLearner(cfg["n_classes"]).to(self.device)
+            if node_type == "vision"
+            else CRNNEdge(cfg.get("n_audio_classes", 10)).to(self.device)
+        )
+        self.opt = optim.Adam(
+            filter(lambda p: p.requires_grad, self.model.parameters()),
+            lr=cfg.get("lr_adapter", 1e-3),
+        )
+        self.sketcher = FisherSketch(576 if node_type == "vision" else 128, 32)
+        self.codec = HSQCodec(cfg.get("hsq_bit_budget", 4), cfg.get("hsq_sparse_ratio", 0.5))
+        self.gov = BudgetPlasticityGovernor(
+            cfg.get("memory_cap_mb", 0.5), cfg.get("energy_cap_mah", 15), cfg.get("privacy_epsilon", 0.5)
+        )
+        self.firewall = PolicyFirewall() if node_type == "vision" else None
+        self.buffer = deque(maxlen=cfg.get("buffer_size", 1000))
+        self.metrics = {"forgetting": [], "accuracy": [], "energy": []}
+
+    # ------------------------------------------------------------------
+    def _sample_replay(self, k: int):
+        idx = np.random.choice(len(self.buffer), k, replace=False)
+        out = []
+        for i in idx:
+            item = self.buffer[i]
+            if isinstance(item["act"], dict):
+                item = {"act": self.codec.decode(item["act"]), "lab": item["lab"]}
+            out.append(item)
+        return out
+
+    # ------------------------------------------------------------------
+    def train_step(self, batch: Dict) -> Dict:
+        self.model.train()
+        inp, lab = batch["input"].to(self.device), batch["label"].to(self.device)
+        if self.firewall:
+            sensitive, cat = self.firewall.check(inp[0])
+            if sensitive:
+                self.buffer.append({"act": self.firewall.apply_null_code(inp).cpu(), "lab": lab.cpu()})
+                return {"loss": 0.0, "sensitive": True}
+        out = self.model(inp)
+        loss = F.cross_entropy(out, lab)
+        self.opt.zero_grad()
+        loss.backward()
+        self.opt.step()
+        sketch = (
+            self.sketcher.capture(self.model.adapter.weight.grad)
+            if hasattr(self.model, "adapter") and self.model.adapter.weight.grad is not None
+            else torch.zeros(576, 32)
+        )
+        # store activation compressed
+        with torch.no_grad():
+            feat = self.model.features(inp) if self.node_type == "vision" else inp
+            feat = torch.flatten(self.model.avgpool(feat), 1) if self.node_type == "vision" else feat
+            enc = self.codec.encode(feat, sketch.flatten())
+            self.buffer.append({"act": enc, "lab": lab.cpu()})
+            orig = feat.numel() * 4
+            enc_sz = (
+                enc["high_quant"].numel()
+                + enc["sparse_vals"].numel() * 4
+                + enc["high_indices"].numel() * 2
+                + enc["sparse_indices"].numel() * 2
+                + 4
+            )
+        return {"loss": loss.item(), "compression_ratio": orig / max(enc_sz, 1)}
+
+    # ------------------------------------------------------------------
+    def update_codebook(self, codebook: torch.Tensor):
+        self.codebook = codebook
+        logger.info(f"Node {self.node_id}: codebook updated")
+
+    # ------------------------------------------------------------------
+    def get_stats(self):
+        return {
+            "forgetting_rate": np.mean(self.metrics["forgetting"][-10:]) if self.metrics["forgetting"] else 0.0
+        }
+
+
+# ----------------------------------------------------------------------------
+#               HUB-SIDE COLLABORATIVE CODEBOOK DISTILLATION (CCD)
+# ----------------------------------------------------------------------------
+
+def collaborative_codebook_distillation(sketches: List[torch.Tensor], n_codes: int = 256):
+    from sklearn.cluster import KMeans
+
+    X = torch.cat(sketches, 0).cpu().numpy()
+    km = KMeans(n_clusters=n_codes, n_init=10, max_iter=40).fit(X)
+    return torch.tensor(km.cluster_centers_, dtype=torch.float32)
+
+
+# ----------------------------------------------------------------------------
+#                                FLEET TRAINING
+# ----------------------------------------------------------------------------
+
+def train_fleet(config_path: str):
+    import yaml
+
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+    v, a = cfg.get("num_vision_nodes", 60), cfg.get("num_audio_nodes", 40)
+    vision = [ContinualLearner(cfg, i, "vision") for i in range(v)]
+    audio = [ContinualLearner(cfg, i + v, "audio") for i in range(a)]
+    fleet = vision + audio
+    fpa = FederatedPrivacyAccountant(len(fleet), cfg.get("privacy_epsilon", 0.5))
+
+    days, frames = cfg.get("num_days", 1), cfg.get("frames_per_day", 1000)
+    ccd_int = cfg.get("ccd_interval_days", 7)
+    res = {"daily_metrics": []}
+
+    for d in range(days):
+        logger.info(f"Day {d+1}/{days}")
+        sketches = []
+        for n, learner in enumerate(fleet):
+            sens = 0
+            for _ in range(min(100, frames)):
+                batch = {
+                    "input": torch.randn(1, 3, 96, 96) if learner.node_type == "vision" else torch.randn(1, 1, 64, 64),
+                    "label": torch.randint(0, cfg["n_classes"], (1,)),
+                }
+                out = learner.train_step(batch)
+                sens += int(out.get("sensitive", False))
+            fpa.update_risk(n, sens / frames)
+            if learner.node_type == "vision":
+                sketches.append(torch.randn(10, 32))
+        if (d + 1) % ccd_int == 0 and sketches:
+            cb = collaborative_codebook_distillation(sketches)
+            for l in fleet:
+                l.update_codebook(cb)
+        res["daily_metrics"].append({"day": d + 1})
+
+    # ---------------- save ----------------
+    out_dir = Path(".research/iteration1")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fn = out_dir / f"train_results_{time.strftime('%Y%m%d_%H%M%S')}.json"
+    with fn.open("w") as f:
+        json.dump(res, f, indent=2)
+    print(json.dumps(res, indent=2))
+    return res
+
+
+if __name__ == "__main__":
+    import sys
+
+    train_fleet(sys.argv[1] if len(sys.argv) > 1 else "config/smoke_test.yaml")

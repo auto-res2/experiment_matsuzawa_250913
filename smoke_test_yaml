@@ -1,0 +1,17 @@
+experiment_name: fleet_iq_smoke
+seed: 42
+batch_size: 4
+num_workers: 2
+num_vision_nodes: 5
+num_audio_nodes: 5
+n_classes: 12
+n_audio_classes: 10
+num_days: 1
+frames_per_day: 1000
+ccd_interval_days: 1
+buffer_size: 100
+memory_cap_mb: 0.25
+energy_cap_mah: 10
+privacy_epsilon: 0.5
+hsq_bit_budget: 4
+hsq_sparse_ratio: 0.5

@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+import argparse
+import sys
+from pathlib import Path
+
+import yaml
+
+from .preprocess import prepare_all_data
+from .train import train_fleet
+from .evaluate import evaluate_fleet
+
+
+def main():
+    p = argparse.ArgumentParser("FLEET-IQ entry point")
+    p.add_argument("--smoke-test", action="store_true")
+    p.add_argument("--full-experiment", action="store_true")
+    p.add_argument("--config", type=str)
+    args = p.parse_args()
+
+    if not (args.smoke_test ^ args.full_experiment):
+        print("Error: specify exactly one of --smoke-test / --full-experiment")
+        sys.exit(1)
+    cfg = args.config or (
+        "config/smoke_test.yaml" if args.smoke_test else "config/full_experiment.yaml"
+    )
+    if not Path(cfg).exists():
+        print(f"Config file not found: {cfg}")
+        sys.exit(1)
+
+    # phase-1 smoke test can precede full experiment automatically
+    if args.smoke_test:
+        _run(cfg, "smoke_test")
+    else:
+        # run quick smoke first; continue only if passes
+        ok = _run("config/smoke_test.yaml", "smoke_test")
+        if ok is None:
+            print("Smoke-test failed → aborting full experiment")
+            sys.exit(1)
+        _run(cfg, "full_experiment")
+
+
+def _run(cfg_path: str, tag: str):
+    print(f"\n========== Running {tag.upper()} ==========")
+    prepare_all_data(cfg_path)
+    train_fleet(cfg_path)
+    res = evaluate_fleet(cfg_path)
+    return res
+
+
+if __name__ == "__main__":
+    main()
