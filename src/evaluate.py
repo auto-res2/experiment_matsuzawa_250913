@@ -6,8 +6,8 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns  # noqa: F401  (needed for seaborn-matplotlib style)
-import torch  # noqa: F401  (kept for future tensor-based metrics)
+import seaborn as sns  # noqa: F401 (needed for seaborn-matplotlib style)
+import torch  # noqa: F401 (kept for future tensor-based metrics)
 
 __all__ = [
     "evaluate_continual_learning",
@@ -21,7 +21,7 @@ __all__ = [
 # -----------------------------------------------------------------------------
 
 def evaluate_continual_learning(controller, test_loaders, cfg):
-    """Simple helper that queries *controller.evaluate* for each task loader."""
+    """Query *controller.evaluate* for each task-specific loader."""
     res = {"task_accuracies": [], "forgetting_metrics": []}
     for tid, loader in enumerate(test_loaders):
         acc = controller.evaluate(loader)
@@ -32,26 +32,16 @@ def evaluate_continual_learning(controller, test_loaders, cfg):
 
 
 # -----------------------------------------------------------------------------
-# Visualisation helpers  (paths updated to iteration9 as per spec) --------------
-_IMAGES_ROOT = Path(".research/iteration9/images")
+# Visualisation helpers  (mandatory paths – iteration10) -----------------------
+_IMAGES_ROOT = Path(".research/iteration10/images")
 
 
 def _ensure_dir(p: Path):
-    """Create directory *p* if it does not already exist."""
     p.mkdir(parents=True, exist_ok=True)
 
 
 def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
-    """Plot task accuracies and save the figure under `.research/iteration9/images/`.
-
-    Parameters
-    ----------
-    results : Dict
-        Must contain key `task_accuracies` that maps to a list of floats 8 [0,1].
-    save_dir : str | Path, optional
-        Directory in which to save the figure.  Defaults to `_IMAGES_ROOT` so that
-        all experiments end up in the mandated location.
-    """
+    """Plot task accuracies and save under `.research/iteration10/images/`."""
     out = Path(save_dir)
     _ensure_dir(out)
     plt.style.use("seaborn-v0_8-paper")
@@ -68,15 +58,14 @@ def visualize_results(results: Dict, save_dir: str | Path = _IMAGES_ROOT):
         fname = out / "task_acc.pdf"
         plt.savefig(fname, bbox_inches="tight", dpi=300)
         plt.close()
-        print(f" saved figure {fname}")
+        print(f"✔ saved figure {fname}")
 
 
 # -----------------------------------------------------------------------------
-# Tables 6 JSON utils
+# Comparison table & JSON helpers
 # -----------------------------------------------------------------------------
 
 def generate_comparison_table(methods: Dict[str, Dict]):
-    """Return a pretty *pandas* table comparing several methods."""
     rows = []
     for name, stats in methods.items():
         rows.append(
@@ -92,10 +81,11 @@ def generate_comparison_table(methods: Dict[str, Dict]):
     return df
 
 
-# ----- JSON serialisation -----------------------------------------------------
+# -----------------------------------------------------------------------------
+# JSON serialisation
+# -----------------------------------------------------------------------------
 
 def _to_jsonable(obj):
-    """Recursively convert *obj* so that *json.dump* accepts it."""
     if isinstance(obj, np.ndarray):
         return obj.tolist()
     if isinstance(obj, (np.integer, np.floating)):
@@ -108,17 +98,15 @@ def _to_jsonable(obj):
 
 
 def save_results_json(obj: Dict, path: str | Path):
-    """Save *obj* to *path* in JSON format (parent directories auto-created)."""
     p = Path(path)
     _ensure_dir(p.parent)
     with open(p, "w") as f:
         json.dump(_to_jsonable(obj), f, indent=2)
-    print(f" saved {p}")
+    print(f"✔ saved {p}")
 
 
 # -----------------------------------------------------------------------------
-# Make discoverable under multiple import paths (`import evaluate` and
-# `import src.evaluate` both succeed without copying files).
+# Expose under multiple import paths – avoids duplicating file in site-packages
 # -----------------------------------------------------------------------------
 import sys as _sys
 _sys.modules.setdefault("evaluate", _sys.modules[__name__])

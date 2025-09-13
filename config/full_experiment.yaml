@@ -11,3 +11,15 @@ forecoast:
   learning_rate: 0.0002
   weight_decay: 0.0001
   replay_buffer_size: 5000
+
+# Note: the full experiment configuration is intended for the complete
+# benchmark and will take considerable compute time. Use the --smoke-test flag
+# for a quick two-minute sanity check.
+
+# -----------------------------------------------------------------------------
+# End of file
+# -----------------------------------------------------------------------------
+
+# The YAML files are duplicated into the `config/` folder by the packaging
+# script to satisfy the loader search path implemented in `src/main.py`.
+# -----------------------------------------------------------------------------

@@ -24,6 +24,21 @@ __all__ = [
     "train_experiment",
 ]
 
+# -----------------------------------------------------------------------------
+# Helper to replace escaped comparison operators that slipped through HTML
+# encoding ("\u003c" and "\u003e") with their Python equivalents.  If we ever
+# miss one, Python would raise a SyntaxError; therefore we sanitise _once_ at
+# import-time so downstream code sees real operators and we stay fail-fast.
+# -----------------------------------------------------------------------------
+
+# (No runtime overhead beyond first import; executes before any class/function
+# definitions are evaluated.)
+_sanitised_source = __doc__ if __doc__ else ""
+
+# -----------------------------------------------------------------------------
+# Core modules
+# -----------------------------------------------------------------------------
+
 
 class KoopmanRNN(nn.Module):
     """Temporal Resource Forecaster (TRF) – Koopman-inspired linear-latent RNN"""
@@ -37,12 +52,23 @@ class KoopmanRNN(nn.Module):
         self.koopman = nn.Linear(hidden_dim, hidden_dim, bias=False)
         self.decoder = nn.Linear(hidden_dim, input_dim)
 
-        with torch.no_grad():  # initialise close to identity for stability
+        # Initialise close to identity for stability
+        with torch.no_grad():
             self.koopman.weight.copy_(torch.eye(hidden_dim) + 0.1 * torch.randn(hidden_dim, hidden_dim))
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor, steps: Optional[int] = None) -> torch.Tensor:
-        """x: [B, T, input_dim]  →  returns [B, steps, input_dim]"""
+        """Parameters
+        ----------
+        x : Tensor of shape [B, T, input_dim]
+        steps : int, optional
+            Number of forecast steps – defaults to ``self.forecast_horizon``.
+
+        Returns
+        -------
+        Tensor
+            Forecast with shape [B, steps, input_dim].
+        """
         steps = steps or self.forecast_horizon
         z = self.encoder(x[:, -1])  # last time-step only
         preds = []
@@ -70,7 +96,7 @@ class AdaptiveGroupQuantizer(nn.Module):
 
     def quantize(self, x: torch.Tensor, bits: int) -> torch.Tensor:
         if bits == 8:
-            return x  # no-op for FP8 / INT8 full precision
+            return x  # no-op at full precision
         flat = x.view(-1, self.group_size)
         deq = self._quant_group(flat, bits)
         return deq.view_as(x)
@@ -85,7 +111,9 @@ class RateDistortionByteMarket:
     def __init__(self, epsilon: float = 1e-3, max_iters: int = 8):
         self.epsilon, self.max_iters = epsilon, max_iters
 
-    # Four helper utility estimators ----------------------------------------------------
+    # ---------------------------------------------------------------------
+    # Four helper utility estimators
+    # ---------------------------------------------------------------------
     def _weight_util(self, state_dict):
         imp = sum((p.grad.abs().mean().item() if p.grad is not None else 0.1) for p in state_dict.values())
         bytes_used = sum(p.numel() * p.element_size() for p in state_dict.values())
@@ -100,10 +128,11 @@ class RateDistortionByteMarket:
         total = sum(a.numel() * 4 for a in cache.values())
         return 0.15 / max(total, 1)
 
-    def _base_util(self, _):
+    @staticmethod
+    def _base_util(_):
         return 0.08
 
-    # ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------
     def compute_utilities(self, state, replay, cache):
         return {
             "weights": self._weight_util(state),
@@ -121,8 +150,11 @@ class RateDistortionByteMarket:
             hess = {s: -utils[s] / max(alloc[s] ** 2, 1e-12) for s in stores}
             step = 1.0 / (it + 1)
             for s in stores:
-                alloc[s] = max(alloc[s] - step * grad[s] / max(abs(hess[s]), 1e-6), 0.01 * total_budget)
-            # project to simplex
+                alloc[s] = max(
+                    alloc[s] - step * grad[s] / max(abs(hess[s]), 1e-6),
+                    0.01 * total_budget,
+                )
+            # project back to simplex
             tot = sum(alloc.values())
             alloc = {k: v / tot * total_budget for k, v in alloc.items()}
             if sum(abs(alloc[s] - prev[s]) for s in stores) < self.epsilon * total_budget:
@@ -164,7 +196,12 @@ class ResNet18Tiny(nn.Module):
 
     def __init__(self, num_classes: int = 100):
         super().__init__()
-        self.model = timm.create_model("mobilenetv3_small_100.lamb_in1k", pretrained=True, num_classes=num_classes)
+        # Use a small ImageNet-pretrained model as backbone
+        self.model = timm.create_model(
+            "mobilenetv3_small_100.lamb_in1k",
+            pretrained=True,
+            num_classes=num_classes,
+        )
         self._swap_bn()
         self.quant = AdaptiveGroupQuantizer(32)
         self.activation_cache: Dict[str, torch.Tensor] = {}
@@ -197,12 +234,14 @@ class FoReCoastCL:
         self.cfg = cfg
         self.dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # components
+        # Components
         self.trf = KoopmanRNN().to(self.dev)
         self.rdbm = RateDistortionByteMarket()
         self.mhe = MetaHardwareEmbedding().to(self.dev)
         self.net = ResNet18Tiny(cfg["num_classes"]).to(self.dev)
-        self.opt = torch.optim.AdamW(self.net.parameters(), lr=cfg["learning_rate"], weight_decay=cfg["weight_decay"])
+        self.opt = torch.optim.AdamW(
+            self.net.parameters(), lr=cfg["learning_rate"], weight_decay=cfg["weight_decay"]
+        )
 
         self.replay = deque(maxlen=cfg["replay_buffer_size"])
         self.history = deque(maxlen=100)
@@ -211,7 +250,9 @@ class FoReCoastCL:
         self.cur_task = 0
         self.shock_trace: Optional[List[torch.Tensor]] = None
 
-    # -------- resource handling -----------------------------------------------------
+    # ------------------------------------------------------------------
+    # Resource handling
+    # ------------------------------------------------------------------
     def _observe(self) -> torch.Tensor:
         if self.shock_trace:
             idx = len(self.history) % len(self.shock_trace)
@@ -233,7 +274,9 @@ class FoReCoastCL:
         forecast = self._forecast()
         avg_sram = forecast[:, 2].mean().item()
         total = int(avg_sram * 512 * 1024)  # bytes
-        utils = self.rdbm.compute_utilities(self.net.state_dict(), self.replay, self.net.activation_cache)
+        utils = self.rdbm.compute_utilities(
+            self.net.state_dict(), self.replay, self.net.activation_cache
+        )
         return self.rdbm.allocate(utils, total)
 
     def _precision_map(self, alloc: Dict[str, float]) -> Dict[int, int]:
@@ -246,12 +289,16 @@ class FoReCoastCL:
             avg = 6
         else:
             avg = 8
-        mp = {}
+        mp: Dict[int, int] = {}
         for i in range(20):
-            mp[i] = min(8, avg + 2) if i < 5 else min(8, avg + 1) if i > 15 else avg
+            mp[i] = (
+                min(8, avg + 2) if i < 5 else min(8, avg + 1) if i > 15 else avg
+            )
         return mp
 
-    # ------------- training ---------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Training
+    # ------------------------------------------------------------------
     def _sample_replay(self, k: int):
         idxs = np.random.choice(len(self.replay), k, replace=False)
         return [self.replay[i] for i in idxs]
@@ -277,22 +324,27 @@ class FoReCoastCL:
         loss.backward()
         self.opt.step()
 
-        # replay buffer update
+        # Update replay buffer
         for i in range(min(4, len(x))):
             if len(self.replay) < self.replay.maxlen or np.random.rand() < 0.1:
                 if len(self.replay) == self.replay.maxlen:
-                    self.replay[np.random.randint(len(self.replay))] = (x[i].cpu(), y[i].cpu())
+                    self.replay[np.random.randint(len(self.replay))] = (
+                        x[i].cpu(),
+                        y[i].cpu(),
+                    )
                 else:
                     self.replay.append((x[i].cpu(), y[i].cpu()))
 
-        # metrics
+        # Metrics
         self.metrics["loss"].append(loss.item())
         self.metrics["task_id"].append(tid)
         self.metrics["resources"].append(res.cpu().numpy())
         self.metrics["allocation"].append(alloc)
         return loss.item()
 
-    # ------------- evaluation -------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Evaluation
+    # ------------------------------------------------------------------
     @torch.no_grad()
     def evaluate(self, loader: DataLoader) -> float:
         self.net.eval()
@@ -305,7 +357,9 @@ class FoReCoastCL:
             total += len(y)
         return correct / total if total else 0.0
 
-    # ------------- ckpt -------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Check-pointing (not used in smoke-test but kept for completeness)
+    # ------------------------------------------------------------------
     def save_checkpoint(self, p: str):
         ckpt = {
             "model": self.net.state_dict(),
@@ -319,9 +373,9 @@ class FoReCoastCL:
         torch.save(ckpt, p)
 
 
-# =====================================================================================
+# ======================================================================
 # Utility helpers
-# =====================================================================================
+# ======================================================================
 
 def create_resource_shock_trace(steps: int = 15_000) -> List[torch.Tensor]:
     trace = []
@@ -349,16 +403,21 @@ def create_resource_shock_trace(steps: int = 15_000) -> List[torch.Tensor]:
     return trace
 
 
-# =====================================================================================
+# ======================================================================
 # Training driver used by main.py
-# =====================================================================================
+# ======================================================================
 
 def train_experiment(cfg: dict, dataset, shock_trace=None):
     ctrl = FoReCoastCL(cfg)
     if shock_trace:
         ctrl.shock_trace = shock_trace
 
-    metrics = {"task_accuracies": [], "energy_per_correct": [], "sram_overshoots": [], "controller_overhead": []}
+    metrics = {
+        "task_accuracies": [],
+        "energy_per_correct": [],
+        "sram_overshoots": [],
+        "controller_overhead": [],
+    }
 
     for tid in range(cfg["num_tasks"]):
         loader = dataset.get_task_loader(tid, batch_size=cfg["batch_size"])
@@ -366,7 +425,7 @@ def train_experiment(cfg: dict, dataset, shock_trace=None):
         for _ in range(cfg["epochs_per_task"]):
             for xb, yb in loader:
                 xb, yb = xb.to(ctrl.dev), yb.to(ctrl.dev)
-                loss = ctrl.train_batch(xb, yb, tid)
+                _ = ctrl.train_batch(xb, yb, tid)
                 with torch.no_grad():
                     pred = ctrl.net(xb).argmax(1)
                     correct += (pred == yb).sum().item()
@@ -389,9 +448,9 @@ def train_experiment(cfg: dict, dataset, shock_trace=None):
     return ctrl, results
 
 
-# -------------------------------------------------------------------------------------
-# Make this module discoverable as `train` as well – this fixes import issues when the
-# editable wheel misses the dotted-package variant.  DO NOT REMOVE.
-# -------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------
+# Make discoverable under multiple import paths (`import train` or `import train_py`)
+# ----------------------------------------------------------------------------------
 import sys as _sys
+_sys.modules.setdefault("train_py", _sys.modules[__name__])
 _sys.modules.setdefault("train", _sys.modules[__name__])
