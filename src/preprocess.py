@@ -1,89 +1,24 @@
-from pathlib import Path
-from typing import List
+# Thin wrapper to make ``import preprocess_py`` work. The real implementation
+# lives in the sibling file without the ".py" suffix. This file dynamically
+# loads it and re-exports every public symbol.
 
-import numpy as np
-import torch
-from torch.utils.data import DataLoader, Dataset, Subset
-import torchvision.transforms as T
-from PIL import Image
-from datasets import load_dataset
+from __future__ import annotations
 
-__all__ = ["DataPreprocessor"]
-
-
-class _SplitCIFAR100(Dataset):
-    """Split CIFAR-100 into *num_tasks* sequential tasks of four classes each."""
-
-    def __init__(self, train: bool, transform, num_tasks: int = 25, seed: int = 42):
-        try:
-            self.data = load_dataset("uoft-cs/cifar100", split="train" if train else "test")
-        except Exception as e:
-            raise RuntimeError(
-                "Failed to download CIFAR-100. Ensure internet access or provide cached copy."
-            ) from e
-        self.transform = transform
-        self.num_tasks = num_tasks
-        rng = np.random.RandomState(seed)
-        classes = np.arange(100)
-        rng.shuffle(classes)
-        self.task_cls: List[List[int]] = [classes[i * 4 : (i + 1) * 4].tolist() for i in range(num_tasks)]
-        self.cls2task = {c: t for t, cls in enumerate(self.task_cls) for c in cls}
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        samp = self.data[idx]
-        img = samp["img"]
-        if not isinstance(img, Image.Image):
-            img = Image.fromarray(img)
-        img = self.transform(img)
-        return img, samp["fine_label"]
-
-    def task_indices(self, tid: int):
-        return [
-            i for i, samp in enumerate(self.data) if samp["fine_label"] in self.task_cls[tid]
-        ]
-
-    def loader(self, tid: int, bs: int = 32, shuffle: bool = True):
-        return DataLoader(Subset(self, self.task_indices(tid)), batch_size=bs, shuffle=shuffle)
-
-
-class DataPreprocessor:
-    """Dataset wrapper that returns per-task loaders via ``get_task_loader``."""
-
-    def __init__(self, dataset_name: str = "vision", root: str = "data"):
-        self.dataset_name = dataset_name
-        root = Path(root)
-        root.mkdir(exist_ok=True)
-        if dataset_name == "vision":
-            tr = T.Compose(
-                [
-                    T.RandomCrop(32, padding=4),
-                    T.RandomHorizontalFlip(),
-                    T.ToTensor(),
-                    T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                ]
-            )
-            te = T.Compose(
-                [
-                    T.ToTensor(),
-                    T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                ]
-            )
-            self.train_ds = _SplitCIFAR100(True, tr)
-            self.test_ds = _SplitCIFAR100(False, te)
-        else:
-            raise NotImplementedError("Only the 'vision' dataset is supported in this demo.")
-
-    def get_task_loader(self, tid: int, batch_size: int = 32, train: bool = True):
-        ds = self.train_ds if train else self.test_ds
-        return ds.loader(tid, batch_size)
-
-
-# -----------------------------------------------------------------------------
-# Make discoverable via multiple import paths
-# -----------------------------------------------------------------------------
+import importlib.util as _iu
 import sys as _sys
-_sys.modules.setdefault("preprocess_py", _sys.modules[__name__])
-_sys.modules.setdefault("src.preprocess_py", _sys.modules[__name__])
+from pathlib import Path as _Path
+
+_src_path = _Path(__file__).with_suffix("")
+if not _src_path.exists():
+    raise ImportError("Missing source file 'preprocess_py' next to wrapper.")
+
+_spec = _iu.spec_from_file_location("_forecoast_preprocess_impl", _src_path)
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"Could not create import spec for {_src_path}")
+
+_mod = _iu.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)  # type: ignore[arg-type]
+
+globals().update(_mod.__dict__)
+_sys.modules.setdefault("preprocess_py", _mod)
+_sys.modules.setdefault("src.preprocess_py", _mod)

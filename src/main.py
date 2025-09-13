@@ -84,10 +84,10 @@ except ImportError:
         raise ImportError("Could not locate preprocess_py module.")
 
 # -----------------------------------------------------------------------------
-# Paths – mandated iteration10 folders
+# Paths – mandated iteration11 folders
 # -----------------------------------------------------------------------------
 CFG_DIR = _repo_root / "config"
-JSON_ROOT = Path(".research/iteration10")
+JSON_ROOT = Path(".research/iteration11")
 IMG_ROOT = JSON_ROOT / "images"
 
 

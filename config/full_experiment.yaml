@@ -23,3 +23,9 @@ forecoast:
 # The YAML files are duplicated into the `config/` folder by the packaging
 # script to satisfy the loader search path implemented in `src/main.py`.
 # -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# (THIS COPY lives directly under *config/* to satisfy the mandatory file
+# requirement for iteration11.  An identical file is kept at project root so
+# that existing paths in earlier notebooks remain valid.)
+# -----------------------------------------------------------------------------
